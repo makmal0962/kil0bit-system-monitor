@@ -1,0 +1,51 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  release:
+    permissions:
+      contents: write
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust (stable)
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust Cache
+        uses: swatinem/rust-cache@v2
+
+      - name: Build Release EXE
+        run: cargo build --release
+
+      - name: Install cargo-wix
+        run: cargo install cargo-wix
+
+      - name: Build MSI Installer
+        run: cargo wix --no-build --nocapture
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: kil0bit System Monitor ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          body: |
+            ## kil0bit System Monitor ${{ github.ref_name }}
+
+            A low-latency hardware telemetry overlay for the Windows taskbar.
+
+            ### Download
+            - **`kil0bit-system-monitor-setup.msi`** — Installer (recommended)
+            - **`kil0bit-system-monitor.exe`** — Portable binary (no install needed)
+
+            See [CHANGELOG.md](https://github.com/kil0bit-kb/kil0bit-system-monitor/blob/main/CHANGELOG.md) for what's new.
+          files: |
+            target/release/kil0bit-system-monitor.exe
+            target/wix/*.msi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,78 @@
+<?xml version='1.0' encoding='windows-1252'?>
+<Wix xmlns='http://schemas.microsoft.com/wix/2006/wi'>
+  <Product
+    Id='*'
+    Name='kil0bit System Monitor'
+    UpgradeCode='E3B0C442-98FC-1C14-9AFB-D36F9B6D7F3A'
+    Manufacturer='KB - kil0bit'
+    Language='1033'
+    Codepage='1252'
+    Version='!(bind.FileVersion.kil0bitEXE)'>
+
+    <Package
+      Id='*'
+      Keywords='Installer'
+      Description='kil0bit System Monitor — Hardware Telemetry Overlay for Windows'
+      Manufacturer='KB - kil0bit'
+      InstallerVersion='450'
+      Languages='1033'
+      Compressed='yes'
+      InstallScope='perUser'
+      SummaryCodepage='1252'/>
+
+    <MajorUpgrade
+      Schedule='afterInstallInitialize'
+      DowngradeErrorMessage='A newer version of kil0bit System Monitor is already installed.'/>
+
+    <Media Id='1' Cabinet='kil0bit.cab' EmbedCab='yes' DiskPrompt='CD-ROM #1'/>
+    <Property Id='DiskPrompt' Value='kil0bit System Monitor Installation'/>
+
+    <Directory Id='TARGETDIR' Name='SourceDir'>
+      <Directory Id='LocalAppDataFolder'>
+        <Directory Id='APPLICATIONFOLDER' Name='kil0bit System Monitor'>
+
+          <Component Id='MainExecutable' Guid='*'>
+            <File
+              Id='kil0bitEXE'
+              Name='kil0bit-system-monitor.exe'
+              DiskId='1'
+              Source='target\release\kil0bit-system-monitor.exe'
+              KeyPath='yes'/>
+
+            <!-- Auto-start registry entry (disabled by default, user enables in app) -->
+            <!-- The app manages its own auto-start via registry; no forced entry here -->
+          </Component>
+
+        </Directory>
+      </Directory>
+
+      <!-- Start Menu shortcut -->
+      <Directory Id='ProgramMenuFolder'>
+        <Directory Id='ApplicationProgramsFolder' Name='kil0bit System Monitor'>
+          <Component Id='ApplicationShortcut' Guid='*'>
+            <Shortcut
+              Id='ApplicationStartMenuShortcut'
+              Name='kil0bit System Monitor'
+              Description='Hardware Telemetry Overlay for Windows'
+              Target='[APPLICATIONFOLDER]kil0bit-system-monitor.exe'
+              WorkingDirectory='APPLICATIONFOLDER'/>
+            <RemoveFolder Id='CleanUpShortCut' Directory='ApplicationProgramsFolder' On='uninstall'/>
+            <RegistryValue
+              Root='HKCU'
+              Key='Software\kil0bit\SystemMonitor'
+              Name='installed'
+              Type='integer'
+              Value='1'
+              KeyPath='yes'/>
+          </Component>
+        </Directory>
+      </Directory>
+    </Directory>
+
+    <Feature Id='Complete' Level='1'>
+      <ComponentRef Id='MainExecutable'/>
+      <ComponentRef Id='ApplicationShortcut'/>
+    </Feature>
+
+  </Product>
+</Wix>

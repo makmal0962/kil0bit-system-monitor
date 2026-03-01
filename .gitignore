@@ -1,0 +1,25 @@
+# Rust build artifacts
+/target/
+**/*.rs.bk
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Environment / secrets
+.env
+*.env.local
+
+# Windows artifacts
+Thumbs.db
+Desktop.ini
+
+# Project-specific: private history logs — do NOT push to public repo
+/history/
+history/**
+
+# WiX MSI build output
+wix/*.wixobj
+wix/*.wixpdb

@@ -1,0 +1,694 @@
+﻿// Simple custom Switch component since std-widgets requires explicit importing and might look out of place
+component Switch inherits Rectangle {
+    in property <bool> checked;
+    callback toggled();
+    width: 32px; height: 16px;
+    border-radius: 8px;
+    background: checked ? #0078D7 : #444;
+
+    animate background { duration: 150ms; }
+
+    Rectangle {
+        width: 12px; height: 12px;
+        border-radius: 6px;
+        background: white;
+        x: checked ? parent.width - self.width - 2px : 2px;
+        y: 2px;
+        animate x { duration: 150ms; }
+    }
+
+    TouchArea {
+        clicked => { root.toggled(); }
+    }
+}
+
+import { ComboBox, Button } from "std-widgets.slint";
+import { OverlayWindow } from "main.slint";
+export { OverlayWindow }
+
+component ColorSwatch inherits Rectangle {
+    in property <color> swatch_color;
+    callback clicked();
+    width: 24px; height: 24px;
+    border-radius: 12px;
+    background: swatch_color;
+    border-width: 1px;
+    border-color: #555;
+    TouchArea { clicked => { root.clicked(); } }
+}
+
+component ColorPicker inherits Rectangle {
+    in-out property <float> hue: 0.0;
+    in-out property <float> saturation: 1.0;
+    in-out property <float> value: 1.0;
+    in-out property <float> alpha: 1.0;
+    
+    out property <color> selected_color: hsv(hue, saturation, value, alpha);
+    
+    callback accepted(color);
+    callback canceled();
+
+    width: 320px;
+    height: 420px;
+    background: #252526;
+    border-radius: 8px;
+    border-width: 1px;
+    border-color: #444;
+
+    VerticalLayout {
+        padding: 20px;
+        spacing: 16px;
+        
+        // Header
+        HorizontalLayout {
+            alignment: space-between;
+            Text { text: "Select Color"; color: white; font-size: 16px; font-weight: 600; }
+            Rectangle {
+                width: 24px; height: 24px;
+                Text { text: "?"; color: #888; font-size: 18px; horizontal-alignment: center; vertical-alignment: center; }
+                TouchArea { clicked => { root.canceled(); } }
+            }
+        }
+
+        // Saturation/Value Area
+        Rectangle {
+            height: 180px;
+            background: hsv(hue, 1.0, 1.0, 1.0);
+            border-radius: 4px;
+            clip: true;
+            
+            // Saturation gradient (white to transparent)
+            Rectangle {
+                background: @linear-gradient(90deg, #FFFFFF 0%, #FFFFFF00 100%);
+            }
+            // Value gradient (transparent to black)
+            Rectangle {
+                background: @linear-gradient(0deg, #000000 0%, #00000000 100%);
+            }
+
+            // Selection marker
+            Rectangle {
+                x: saturation * parent.width - 6px;
+                y: (1.0 - value) * parent.height - 6px;
+                width: 12px; height: 12px;
+                border-radius: 6px;
+                border-width: 2px;
+                border-color: value > 0.5 ? black : white;
+            }
+
+            TouchArea {
+                pointer-event(event) => {
+                    if (event.button == PointerEventButton.left && (event.kind == PointerEventKind.down || event.kind == PointerEventKind.move)) {
+                        root.saturation = max(0.0, min(1.0, self.mouse-x / parent.width));
+                        root.value = max(0.0, min(1.0, 1.0 - (self.mouse-y / parent.height)));
+                    }
+                }
+            }
+        }
+
+        // Hue Slider
+        Rectangle {
+            height: 12px;
+            border-radius: 6px;
+            background: @linear-gradient(90deg, #FF0000 0%, #FFFF00 17%, #00FF00 33%, #00FFFF 50%, #0000FF 67%, #FF00FF 83%, #FF0000 100%);
+            
+            Rectangle {
+                x: (hue / 360.0) * parent.width - 8px;
+                y: -2px;
+                width: 16px; height: 16px;
+                border-radius: 8px;
+                background: white;
+                border-width: 2px;
+                border-color: #333;
+            }
+
+            TouchArea {
+                pointer-event(event) => {
+                    if (event.button == PointerEventButton.left && (event.kind == PointerEventKind.down || event.kind == PointerEventKind.move)) {
+                        root.hue = max(0.0, min(360.0, (self.mouse-x / parent.width) * 360.0));
+                    }
+                }
+            }
+        }
+
+        // Opacity Slider (checkered background simulation)
+        Rectangle {
+            height: 12px;
+            border-radius: 6px;
+            background: @linear-gradient(90deg, transparent 0%, hsv(hue, saturation, value, 1.0) 100%);
+            
+            // Checkerboard pattern would be nice but simple gradient for now
+            Rectangle {
+                x: alpha * parent.width - 8px;
+                y: -2px;
+                width: 16px; height: 16px;
+                border-radius: 8px;
+                background: white;
+                border-width: 2px;
+                border-color: #333;
+            }
+
+            TouchArea {
+                pointer-event(event) => {
+                    if (event.button == PointerEventButton.left && (event.kind == PointerEventKind.down || event.kind == PointerEventKind.move)) {
+                        root.alpha = max(0.0, min(1.0, self.mouse-x / parent.width));
+                    }
+                }
+            }
+        }
+
+        // Preview & Hex
+        HorizontalLayout {
+            spacing: 12px;
+            Rectangle {
+                width: 48px; height: 48px;
+                border-radius: 4px;
+                background: root.selected_color;
+                border-width: 1px; border-color: #444;
+            }
+            VerticalLayout {
+                alignment: center;
+                Text { text: "Final Color"; color: #888; font-size: 12px; }
+                Text { 
+                    text: "HSL(" + round(root.hue) + ", " + round(root.saturation * 100) + "%, " + round(root.value * 100) + "%)"; 
+                    color: white; font-size: 14px; font-family: "Consolas";
+                }
+            }
+        }
+
+        // Actions
+        HorizontalLayout {
+            spacing: 12px;
+            Button {
+                text: "Cancel";
+                horizontal-stretch: 1;
+                clicked => { root.canceled(); }
+            }
+            Button {
+                text: "Apply";
+                primary: true;
+                horizontal-stretch: 1;
+                clicked => { root.accepted(root.selected_color); }
+            }
+        }
+    }
+}
+
+export component AppWindow inherits Window {
+    title: "kil0bit System Monitor";
+    icon: @image-url("assets/icon.png");
+    width: 800px;
+    height: 600px;
+    background: #1A1A1A; // kil0bit dark theme
+
+    callback window_moved(length, length);
+
+    callback toggle_cpu();
+    callback toggle_mem();
+    callback toggle_gpu();
+    callback toggle_temp_gpu();
+    callback toggle_net_up();
+    callback toggle_net_down();
+    callback launch_overlay();
+    callback exit_app();
+    
+    callback apply_font(string);
+    callback apply_text_color(color);
+    callback toggle_locked_drag();
+    callback apply_bg_color(color);
+    callback apply_bg_opacity(float);
+    callback toggle_auto_start();
+    callback save_and_close();
+    callback open_url(string);
+
+    in property <string> app_version: "1.0.0";
+
+    in property <bool> show_cpu: true;
+    in property <bool> show_mem: true;
+    in property <bool> show_gpu: true;
+    in property <bool> show_temp_gpu: true;
+    in property <bool> show_net_up: true;
+    in property <bool> show_net_down: true;
+    in property <bool> show_overlay: false;
+    in property <bool> locked_drag: false;
+    in property <bool> auto_start: false;
+    in-out property <string> active_tab: "Settings";
+    
+    in property <string> font_family_name: "System Default";
+    in property <string> text_color_hex: "#FFFFFF";
+    in-out property <float> bg_opacity_value: 0.55;
+
+    in property <[string]> network_adapters: ["All Adapters"];
+    in property <string> selected_network_adapter: "All Adapters";
+    callback apply_network_adapter(string);
+
+    in property <[string]> display_variants: ["Standard", "Compact", "Icon"];
+    in-out property <string> selected_display_variant: "Standard";
+    callback apply_display_variant(string);
+
+    // Color Picker State
+    property <bool> show_color_picker: false;
+    property <string> color_picker_target: "accent"; // "accent" or "backdrop"
+    property <float> cp_h: 0.0;
+    property <float> cp_s: 1.0;
+    property <float> cp_v: 1.0;
+    property <float> cp_a: 1.0;
+
+    // 1. TOP BAR (ABSOLUTE)
+    Rectangle {
+        x: 0px; y: 0px; width: root.width; height: 50px;
+        background: #252526; // title bar color
+
+        HorizontalLayout {
+            padding-left: 12px;
+            padding-right: 12px;
+            spacing: 16px;
+            alignment: space-between;
+            
+            // Tab Buttons
+            HorizontalLayout {
+                spacing: 12px;
+                alignment: center;
+                
+                Rectangle {
+                    border-radius: 4px;
+                    background: root.active_tab == "Settings" ? #333333 : transparent;
+                    TouchArea { clicked => { root.active_tab = "Settings"; } }
+                    HorizontalLayout {
+                        padding-left: 12px; padding-right: 12px; padding-top: 6px; padding-bottom: 6px;
+                        Text { 
+                            text: "Settings"; 
+                            color: root.active_tab == "Settings" ? #0078D7 : white; 
+                            font-size: 16px;
+                            font-weight: 700; 
+                            vertical-alignment: center;
+                            horizontal-alignment: center;
+                        }
+                    }
+                }
+                Rectangle {
+                    border-radius: 4px;
+                    background: root.active_tab == "About" ? #333333 : transparent;
+                    TouchArea { clicked => { root.active_tab = "About"; } }
+                    HorizontalLayout {
+                        padding-left: 12px; padding-right: 12px; padding-top: 6px; padding-bottom: 6px;
+                        Text { 
+                            text: "About"; 
+                            color: root.active_tab == "About" ? #0078D7 : white; 
+                            font-size: 16px;
+                            font-weight: 700; 
+                            vertical-alignment: center;
+                            horizontal-alignment: center;
+                        }
+                    }
+                }
+            }
+            
+            // Right-aligned Support Button
+            HorizontalLayout {
+                horizontal-stretch: 1;
+                alignment: end;
+                VerticalLayout {
+                    alignment: center;
+                    Rectangle {
+                        border-radius: 4px;
+                        background: ta_sup.has-hover ? #FF424D : transparent;
+                        border-width: 1px;
+                        border-color: #FF424D;
+                        HorizontalLayout {
+                            padding-left: 16px; padding-right: 16px; padding-top: 6px; padding-bottom: 6px;
+                            Text {
+                                text: "Support Me \u{2764}"; // Unicode heart
+                                color: ta_sup.has-hover ? white : #FF424D;
+                                font-size: 13px; font-weight: 700;
+                            }
+                        }
+                        ta_sup := TouchArea { clicked => { root.open_url("https://www.patreon.com/cw/KB_kilObit"); } }
+                    }
+                }
+            }
+        }
+    }
+
+    // 2. DIVIDER (ABSOLUTE)
+    Rectangle { 
+        x: 0px; y: 50px; width: root.width; height: 1px; 
+        background: #444444; 
+    }
+
+    // 3. MAIN CONTENT AREA (ABSOLUTE)
+    Rectangle {
+        x: 0px; y: 51px; width: root.width; height: root.height - 51px;
+        background: transparent;
+
+        // --- SETTINGS PANE ---
+        VerticalLayout {
+            opacity: root.active_tab == "Settings" ? 1.0 : 0.0;
+            visible: self.opacity > 0.0;
+            animate opacity { duration: 150ms; easing: ease-in-out; }
+            
+            padding: 24px;
+            spacing: 24px;
+            width: 100%; height: 100%;
+
+            // Columns Area
+            HorizontalLayout {
+                spacing: 40px;
+                horizontal-stretch: 1;
+                vertical-stretch: 1;
+
+                // LEFT COLUMN (General & Metrics)
+                VerticalLayout {
+                    horizontal-stretch: 1;
+                    spacing: 20px;
+                    alignment: start;
+
+                    // SECTION: GENERAL
+                    VerticalLayout {
+                        spacing: 8px;
+                        Text { text: "GENERAL"; font-size: 11px; font-weight: 800; color: #666; }
+                        
+                        VerticalLayout {
+                            spacing: 10px;
+                            HorizontalLayout {
+                                alignment: space-between;
+                                Text { text: "Show Hardware Overlay on Taskbar"; font-size: 14px; color: white; vertical-alignment: center; }
+                                Switch { checked: root.show_overlay; toggled => { root.launch_overlay(); } } 
+                            }
+                            HorizontalLayout {
+                                alignment: space-between;
+                                Text { text: "Lock Overlay Position"; font-size: 14px; color: white; vertical-alignment: center; }
+                                Switch { checked: root.locked_drag; toggled => { root.toggle_locked_drag(); } } 
+                            }
+                            HorizontalLayout {
+                                alignment: space-between;
+                                Text { text: "Launch on Windows Startup"; font-size: 14px; color: white; vertical-alignment: center; }
+                                Switch { checked: root.auto_start; toggled => { root.toggle_auto_start(); } } 
+                            }
+                        }
+                    }
+
+                    Rectangle { height: 1px; background: #333333; }
+
+                    // SECTION: MONITOR CONTENT
+                    VerticalLayout {
+                        spacing: 12px;
+                        Text { text: "MONITOR CONTENT"; font-size: 11px; font-weight: 800; color: #666; }
+                        
+                        GridLayout {
+                            spacing: 16px;
+                            Row {
+                                HorizontalLayout { spacing: 12px; alignment: start; Switch { checked: root.show_cpu; toggled => { root.toggle_cpu(); } } Text { text: "CPU Usage (%)"; color: white; vertical-alignment: center; font-size: 13px; } }
+                                HorizontalLayout { spacing: 12px; alignment: start; Switch { checked: root.show_temp_gpu; toggled => { root.toggle_temp_gpu(); } } Text { text: "GPU Temperature"; color: white; vertical-alignment: center; font-size: 13px; } }
+                            }
+                            Row {
+                                HorizontalLayout { spacing: 12px; alignment: start; Switch { checked: root.show_mem; toggled => { root.toggle_mem(); } } Text { text: "RAM Usage (%)"; color: white; vertical-alignment: center; font-size: 13px; } }
+                                HorizontalLayout { spacing: 12px; alignment: start; Switch { checked: root.show_net_up; toggled => { root.toggle_net_up(); } } Text { text: "Upload Speed"; color: white; vertical-alignment: center; font-size: 13px; } }
+                            }
+                            Row {
+                                HorizontalLayout { spacing: 12px; alignment: start; Switch { checked: root.show_gpu; toggled => { root.toggle_gpu(); } } Text { text: "GPU Usage (%)"; color: white; vertical-alignment: center; font-size: 13px; } }
+                                HorizontalLayout { spacing: 12px; alignment: start; Switch { checked: root.show_net_down; toggled => { root.toggle_net_down(); } } Text { text: "Download Speed"; color: white; vertical-alignment: center; font-size: 13px; } }
+                            }
+                        }
+                    }
+
+                    Rectangle { height: 1px; background: #333333; }
+
+                    // SECTION: HARDWARE CONFIG
+                    VerticalLayout {
+                        spacing: 12px;
+                        Text { text: "HARDWARE CONFIG"; font-size: 11px; font-weight: 800; color: #666; }
+                        
+                        HorizontalLayout {
+                            spacing: 16px;
+                            VerticalLayout {
+                                spacing: 4px;
+                                Text { text: "Network Adapter"; font-size: 12px; color: #AAA; }
+                                ComboBox { width: 220px; model: root.network_adapters; current-value: root.selected_network_adapter; selected(text) => { root.apply_network_adapter(text); } }
+                            }
+                            VerticalLayout {
+                                spacing: 4px;
+                                Text { text: "Display Style"; font-size: 12px; color: #AAA; }
+                                ComboBox { width: 140px; model: root.display_variants; current-value: root.selected_display_variant; selected(text) => { root.apply_display_variant(text); } }
+                            }
+                        }
+                    }
+                }
+
+                // RIGHT COLUMN (Appearance)
+                VerticalLayout {
+                    width: 320px;
+                    spacing: 20px;
+                    alignment: start;
+
+                    Text { text: "THEME & DESIGN"; font-size: 11px; font-weight: 800; color: #666; }
+
+                    VerticalLayout {
+                        spacing: 12px;
+                    
+                        VerticalLayout {
+                            spacing: 6px;
+                            Text { text: "Font Family"; font-size: 13px; color: white; }
+                            ComboBox { width: 100%; model: ["System Default", "Segoe UI", "Segoe UI Variable Text", "Consolas", "Arial", "Cascadia Code", "Tahoma"]; current-value: root.font_family_name; selected(text) => { root.apply_font(text); } }
+                        }
+
+                        VerticalLayout {
+                            spacing: 6px;
+                            Text { text: "Accent Color"; font-size: 13px; color: white; }
+                            HorizontalLayout {
+                                spacing: 8px;
+                                ColorSwatch { swatch_color: #FFFFFF; clicked => { root.apply_text_color(#FFFFFF); } }
+                                ColorSwatch { swatch_color: #FF5555; clicked => { root.apply_text_color(#FF5555); } }
+                                ColorSwatch { swatch_color: #55FF55; clicked => { root.apply_text_color(#55FF55); } }
+                                ColorSwatch { swatch_color: #5555FF; clicked => { root.apply_text_color(#5555FF); } }
+                                ColorSwatch { swatch_color: #FFFF55; clicked => { root.apply_text_color(#FFFF55); } }
+                                ColorSwatch { swatch_color: #FF55FF; clicked => { root.apply_text_color(#FF55FF); } }
+                                ColorSwatch { swatch_color: #55FFFF; clicked => { root.apply_text_color(#55FFFF); } }
+                                // Plus icon for custom color picker
+                                Rectangle {
+                                    width: 24px; height: 24px; border-radius: 12px; background: #333; border-width: 1px; border-color: #555;
+                                    Text { text: "+"; color: #AAA; font-size: 16px; horizontal-alignment: center; vertical-alignment: center; }
+                                    TouchArea { clicked => { root.show_color_picker = true; root.color_picker_target = "accent"; } }
+                                }
+                            }
+                        }
+
+                        VerticalLayout {
+                            spacing: 6px;
+                            Text { text: "Backdrop Color"; font-size: 13px; color: white; }
+                            HorizontalLayout {
+                                spacing: 8px;
+                                ColorSwatch { swatch_color: #00000000; clicked => { root.apply_bg_color(#00000000); } 
+                                    Rectangle { width: 100%; height: 100%; border-radius: 12px; border-width: 1.5px; border-color: #888; } }
+                                ColorSwatch { swatch_color: #000000; clicked => { root.apply_bg_color(#000000); } }
+                                ColorSwatch { swatch_color: #1a1a2e; clicked => { root.apply_bg_color(#1a1a2e); } }
+                                ColorSwatch { swatch_color: #0d1117; clicked => { root.apply_bg_color(#0d1117); } }
+                                ColorSwatch { swatch_color: #1e3a5f; clicked => { root.apply_bg_color(#1e3a5f); } }
+                                ColorSwatch { swatch_color: #2d0a0a; clicked => { root.apply_bg_color(#2d0a0a); } }
+                                ColorSwatch { swatch_color: #0a2d0a; clicked => { root.apply_bg_color(#0a2d0a); } }
+                                
+                                // Plus icon for custom color picker
+                                Rectangle {
+                                    width: 24px; height: 24px; border-radius: 12px; background: #333; border-width: 1px; border-color: #555;
+                                    Text { text: "+"; color: #AAA; font-size: 16px; horizontal-alignment: center; vertical-alignment: center; }
+                                    TouchArea { clicked => { root.show_color_picker = true; root.color_picker_target = "backdrop"; } }
+                                }
+                            }
+                        }
+
+                        VerticalLayout {
+                            spacing: 8px;
+                            Text { text: "Backdrop Opacity (" + Math.round(root.bg_opacity_value * 100) + "%)"; font-size: 13px; color: white; }
+                            HorizontalLayout {
+                                spacing: 8px;
+                                Text { text: "0%"; color: #666; font-size: 10px; vertical-alignment: center; width: 20px; }
+                                Rectangle {
+                                    height: 16px;
+                                    horizontal-stretch: 1;
+                                    background: #333;
+                                    border-radius: 4px;
+                                    
+                                    // filled track
+                                    Rectangle {
+                                        x: 0; y: 2px;
+                                        width: parent.width * root.bg_opacity_value;
+                                        height: parent.height - 4px;
+                                        background: #0078D7;
+                                        border-radius: 2px;
+                                    }
+                                    // thumb
+                                    Rectangle {
+                                        x: parent.width * root.bg_opacity_value - 7px;
+                                        y: 1px;
+                                        width: 14px; height: 14px;
+                                        border-radius: 4px;
+                                        background: white;
+                                        border-width: 1px; border-color: #555;
+                                    }
+                                    TouchArea {
+                                        moved => {
+                                            if self.pressed {
+                                                root.bg_opacity_value = Math.clamp(self.mouse-x / parent.width, 0.0, 1.0);
+                                                root.apply_bg_opacity(root.bg_opacity_value);
+                                            }
+                                        }
+                                        clicked => {
+                                            root.bg_opacity_value = Math.clamp(self.mouse-x / parent.width, 0.0, 1.0);
+                                            root.apply_bg_opacity(root.bg_opacity_value);
+                                        }
+                                    }
+                                }
+                                Text { text: "100%"; color: #666; font-size: 10px; vertical-alignment: center; width: 28px; }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // BOTTOM ACTION BAR
+            HorizontalLayout {
+                padding-top: 12px;
+                alignment: space-between;
+                
+                Rectangle {
+                    width: 140px; height: 32px;
+                    border-radius: 4px;
+                    background: ta_quit.has-hover ? #FF424D.brighter(0.2) : #FF424D;
+                    Text { text: "Quit Application"; color: black; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; }
+                    ta_quit := TouchArea { clicked => { root.exit_app(); } }
+                }
+
+                HorizontalLayout {
+                    spacing: 12px;
+                    Button { 
+                        text: "Save & Close Settings"; 
+                        primary: true;
+                        clicked => { root.save_and_close(); } 
+                    }
+                }
+            }
+        }
+
+        // --- ABOUT PANE ---
+        VerticalLayout {
+            opacity: root.active_tab == "About" ? 1.0 : 0.0;
+            visible: self.opacity > 0.0;
+            animate opacity { duration: 150ms; easing: ease-in-out; }
+            
+            width: 100%; height: 100%;
+            padding: 40px;
+            spacing: 12px;
+            alignment: center;
+                
+                HorizontalLayout {
+                    alignment: center;
+                    Image {
+                        source: @image-url("assets/icon.png");
+                        width: 100px;
+                        height: 100px;
+                    }
+                }
+
+                Text { 
+                    text: "kil0bit System Monitor"; 
+                    font-size: 36px; font-weight: 800; color: white; 
+                    horizontal-alignment: center; 
+                }
+                
+                Text { 
+                    text: "Version " + root.app_version; 
+                    font-size: 16px; color: #0078D7; font-weight: 700; 
+                    horizontal-alignment: center; 
+                }
+                
+                Rectangle { height: 20px; }
+                
+                Text { 
+                    text: "A low-latency system telemetry overlay designed for the Windows power user.\nReal-time monitoring of CPU, RAM, Network, and GPU vitals directly on your\ndesktop with an immersive, distraction-free aesthetic."; 
+                    font-size: 15px; color: #AAAAAA; 
+                    horizontal-alignment: center;
+                }
+                
+                Rectangle { height: 30px; }
+                
+                HorizontalLayout {
+                    spacing: 24px;
+                    alignment: center;
+                    
+                    Rectangle {
+                        border-radius: 4px;
+                        background: ta_yt.has-hover ? #333333 : transparent;
+                        HorizontalLayout { padding: 12px; Text { text: "YouTube"; color: #FF0000; font-size: 15px; font-weight: 700; } }
+                        ta_yt := TouchArea { clicked => { root.open_url("https://www.youtube.com/@kilObit"); } }
+                    }
+                    Rectangle {
+                        border-radius: 4px;
+                        background: ta_bl.has-hover ? #333333 : transparent;
+                        HorizontalLayout { padding: 12px; Text { text: "Blog"; color: #F57C00; font-size: 15px; font-weight: 700; } }
+                        ta_bl := TouchArea { clicked => { root.open_url("https://kil0bit.blogspot.com/"); } }
+                    }
+                    Rectangle {
+                        border-radius: 4px;
+                        background: ta_gh.has-hover ? #333333 : transparent;
+                        HorizontalLayout { padding: 12px; Text { text: "GitHub"; color: white; font-size: 15px; font-weight: 700; } }
+                        ta_gh := TouchArea { clicked => { root.open_url("https://github.com/kil0bit-kb"); } }
+                    }
+                    Rectangle {
+                        border-radius: 4px;
+                        background: ta_x.has-hover ? #333333 : transparent;
+                        HorizontalLayout { padding: 12px; Text { text: "X (Twitter)"; color: #1DA1F2; font-size: 15px; font-weight: 700; } }
+                        ta_x := TouchArea { clicked => { root.open_url("https://x.com/kil0bit"); } }
+                    }
+                    Rectangle {
+                        border-radius: 4px;
+                        background: ta_pt.has-hover ? #333333 : transparent;
+                        HorizontalLayout { padding: 12px; Text { text: "Patreon"; color: #FF424D; font-size: 15px; font-weight: 700; } }
+                        ta_pt := TouchArea { clicked => { root.open_url("https://www.patreon.com/cw/KB_kilObit"); } }
+                    }
+                }
+                
+                Rectangle { vertical-stretch: 1; }
+                
+                Text {
+                    text: "built with ❤️ by KB - kil0bit";
+                    font-size: 14px; color: #666666;
+                    horizontal-alignment: center;
+                }
+            }
+        }
+
+    // 5. COLOR PICKER OVERLAY (MODAL)
+    if root.show_color_picker : Rectangle {
+        x: 0px; y: 0px; width: 100%; height: 100%;
+        background: #00000080; // dim background
+        
+        // Prevent interaction with underlying layers
+        TouchArea { }
+
+        VerticalLayout {
+            alignment: center;
+            HorizontalLayout {
+                alignment: center;
+                ColorPicker {
+                    hue <=> root.cp_h;
+                    saturation <=> root.cp_s;
+                    value <=> root.cp_v;
+                    alpha <=> root.cp_a;
+
+                    accepted(c) => {
+                        if (root.color_picker_target == "accent") {
+                            root.apply_text_color(c);
+                        } else {
+                            root.apply_bg_color(c);
+                            root.apply_bg_opacity(c.alpha);
+                        }
+                        root.show_color_picker = false;
+                    }
+                    canceled => {
+                        root.show_color_picker = false;
+                    }
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,226 @@
+export component OverlayWindow inherits Window {
+    title: "";
+    width: root.display_variant == "Standard" ? 290px : 230px;
+    height: 36px;
+    background: transparent;
+    no-frame: true;
+
+    in property <string> str_up;
+    in property <string> str_down;
+    in property <string> str_cpu;
+    in property <string> str_mem;
+    in property <string> str_gpu;
+    in property <string> str_temp_gpu;
+
+    in property <string> str_up_val;
+    in property <string> str_down_val;
+    in property <string> str_cpu_val;
+    in property <string> str_mem_val;
+    in property <string> str_gpu_val;
+    in property <string> str_temp_gpu_val;
+
+    in property <bool> show_cpu: true;
+    in property <bool> show_mem: true;
+    in property <bool> show_gpu: true;
+    in property <bool> show_temp_gpu: true;
+    in property <bool> show_net_up: true;
+    in property <bool> show_net_down: true;
+    in property <string> display_variant: "Standard";
+    in property <bool> locked_drag: false;
+
+    // Overlay Customization Properties
+    in property <color> text_color: white;
+    in property <string> font_family: "System Default";
+    in property <color> bg_color: #000000;
+    in property <float> bg_opacity: 0.55;
+
+    callback window_moved(length, length);
+    callback window_dropped();
+    callback right_clicked();
+
+    // We will apply transparent acrylic/mica blur via Rust eventually,
+    // but for the mockup we use a semi-transparent dark background.
+    TouchArea {
+        width: 100%;
+        height: 100%;
+        
+        moved => {
+            if !root.locked_drag && self.pressed {
+                root.window_moved(self.mouse-x, self.mouse-y);
+            }
+        }
+        
+        pointer-event(event) => {
+            if event.button == PointerEventButton.left && event.kind == PointerEventKind.up {
+                root.window_dropped();
+            } else if event.button == PointerEventButton.right && event.kind == PointerEventKind.up {
+                root.right_clicked();
+            }
+        }
+
+        Rectangle {
+            width: 100%; height: 100%;
+            background: transparent;
+
+            // Rounded pill background — only the content area has color
+            Rectangle {
+                x: 0; y: 0;
+                width: 100%;
+                height: 100%;
+                background: root.bg_color.with-alpha(root.bg_opacity);
+                border-radius: 8px;
+            }
+
+        HorizontalLayout {
+            padding-left:  root.display_variant == "Standard" ? 12px : 6px;
+            padding-right: root.display_variant == "Standard" ? 12px : 6px;
+            padding-top: 2px;
+            padding-bottom: 2px;
+            spacing: root.display_variant == "Standard" ? 8px : 4px;
+            alignment: center;
+
+            // Network Column (Tx/Rx)
+            if root.show_net_up || root.show_net_down : VerticalLayout {
+                width: root.display_variant == "Standard" ? 100px : 86px;
+                spacing: 0px;
+                alignment: center;
+                if root.show_net_up : HorizontalLayout {
+                    spacing: 2px;
+                    alignment: start;
+                    if root.display_variant == "Icon" : Image { 
+                        source: @image-url("assets/up.svg"); width: 14px; height: 14px; 
+                        colorize: root.text_color; vertical-alignment: center;
+                    }
+                    if root.display_variant == "Standard" : Text {
+                        text: "UP: "; width: 28px;
+                        color: root.text_color; font-size: 13px; font-family: root.font_family == "System Default" ? "" : root.font_family; font-weight: 700; vertical-alignment: center;
+                    }
+                    if root.display_variant == "Compact" : Text {
+                        text: "U: "; width: 16px;
+                        color: root.text_color; font-size: 13px; font-family: root.font_family == "System Default" ? "" : root.font_family; font-weight: 700; vertical-alignment: center;
+                    }
+                    Text { 
+                        text: str_up_val;
+                        color: root.text_color; font-size: 13px; font-family: root.font_family == "System Default" ? "" : root.font_family; font-weight: 700; horizontal-alignment: left; 
+                    }
+                }
+                if root.show_net_down : HorizontalLayout {
+                    spacing: 2px;
+                    alignment: start;
+                    if root.display_variant == "Icon" : Image { 
+                        source: @image-url("assets/down.svg"); width: 14px; height: 14px; 
+                        colorize: root.text_color; vertical-alignment: center;
+                    }
+                    if root.display_variant == "Standard" : Text {
+                        text: "DN: "; width: 28px;
+                        color: root.text_color; font-size: 13px; font-family: root.font_family == "System Default" ? "" : root.font_family; font-weight: 700; vertical-alignment: center;
+                    }
+                    if root.display_variant == "Compact" : Text {
+                        text: "D: "; width: 16px;
+                        color: root.text_color; font-size: 13px; font-family: root.font_family == "System Default" ? "" : root.font_family; font-weight: 700; vertical-alignment: center;
+                    }
+                    Text { 
+                        text: str_down_val;
+                        color: root.text_color; font-size: 13px; font-family: root.font_family == "System Default" ? "" : root.font_family; font-weight: 700; horizontal-alignment: left; 
+                    }
+                }
+            }
+
+            // CPU & RAM Column
+            if root.show_cpu || root.show_mem : VerticalLayout {
+                width: root.display_variant == "Standard" ? 74px : 62px;
+                spacing: 0px;
+                alignment: center;
+                if root.show_cpu : HorizontalLayout {
+                    spacing: 2px;
+                    alignment: start;
+                    if root.display_variant == "Icon" : Image { 
+                        source: @image-url("assets/cpu.svg"); width: 14px; height: 14px; 
+                        colorize: root.text_color; vertical-alignment: center;
+                    }
+                    if root.display_variant == "Standard" : Text {
+                        text: "CPU: "; width: 34px;
+                        color: root.text_color; font-size: 13px; font-family: root.font_family == "System Default" ? "" : root.font_family; font-weight: 700; vertical-alignment: center;
+                    }
+                    if root.display_variant == "Compact" : Text {
+                        text: "C: "; width: 16px;
+                        color: root.text_color; font-size: 13px; font-family: root.font_family == "System Default" ? "" : root.font_family; font-weight: 700; vertical-alignment: center;
+                    }
+                    Text { 
+                        text: str_cpu_val;
+                        color: root.text_color; font-size: 13px; font-family: root.font_family == "System Default" ? "" : root.font_family; font-weight: 700; horizontal-alignment: left; 
+                    }
+                }
+                if root.show_mem : HorizontalLayout {
+                    spacing: 2px;
+                    alignment: start;
+                    if root.display_variant == "Icon" : Image { 
+                        source: @image-url("assets/ram.svg"); width: 14px; height: 14px; 
+                        colorize: root.text_color; vertical-alignment: center;
+                    }
+                    if root.display_variant == "Standard" : Text {
+                        text: "RAM: "; width: 34px;
+                        color: root.text_color; font-size: 13px; font-family: root.font_family == "System Default" ? "" : root.font_family; font-weight: 700; vertical-alignment: center;
+                    }
+                    if root.display_variant == "Compact" : Text {
+                        text: "R: "; width: 16px;
+                        color: root.text_color; font-size: 13px; font-family: root.font_family == "System Default" ? "" : root.font_family; font-weight: 700; vertical-alignment: center;
+                    }
+                    Text { 
+                        text: str_mem_val;
+                        color: root.text_color; font-size: 13px; font-family: root.font_family == "System Default" ? "" : root.font_family; font-weight: 700; horizontal-alignment: left; 
+                    }
+                }
+            }
+
+            // GPU Column
+            if root.show_gpu || root.show_temp_gpu : VerticalLayout {
+                width: root.display_variant == "Standard" ? 86px : 72px;
+                spacing: 0px;
+                alignment: center;
+                if root.show_gpu : HorizontalLayout {
+                    spacing: 2px;
+                    alignment: start;
+                    if root.display_variant == "Icon" : Image { 
+                        source: @image-url("assets/gpu.svg"); width: 14px; height: 14px; 
+                        colorize: root.text_color; vertical-alignment: center;
+                    }
+                    if root.display_variant == "Standard" : Text {
+                        text: "GPU: "; width: 34px;
+                        color: root.text_color; font-size: 13px; font-family: root.font_family == "System Default" ? "" : root.font_family; font-weight: 700; vertical-alignment: center;
+                    }
+                    if root.display_variant == "Compact" : Text {
+                        text: "G: "; width: 16px;
+                        color: root.text_color; font-size: 13px; font-family: root.font_family == "System Default" ? "" : root.font_family; font-weight: 700; vertical-alignment: center;
+                    }
+                    Text { 
+                        text: str_gpu_val;
+                        color: root.text_color; font-size: 13px; font-family: root.font_family == "System Default" ? "" : root.font_family; font-weight: 700; horizontal-alignment: left; 
+                    }
+                }
+                if root.show_temp_gpu : HorizontalLayout {
+                    spacing: 2px;
+                    alignment: start;
+                    if root.display_variant == "Icon" : Image { 
+                        source: @image-url("assets/temp.svg"); width: 14px; height: 14px; 
+                        colorize: root.text_color; vertical-alignment: center;
+                    }
+                    if root.display_variant == "Standard" : Text {
+                        text: "TEM: "; width: 34px;
+                        color: root.text_color; font-size: 13px; font-family: root.font_family == "System Default" ? "" : root.font_family; font-weight: 700; vertical-alignment: center;
+                    }
+                    if root.display_variant == "Compact" : Text {
+                        text: "T: "; width: 16px;
+                        color: root.text_color; font-size: 13px; font-family: root.font_family == "System Default" ? "" : root.font_family; font-weight: 700; vertical-alignment: center;
+                    }
+                    Text { 
+                        text: str_temp_gpu_val;
+                        color: root.text_color; font-size: 13px; font-family: root.font_family == "System Default" ? "" : root.font_family; font-weight: 700; horizontal-alignment: left; 
+                    }
+                }
+            }
+        }
+    }
+}
+}
+
