@@ -71,15 +71,13 @@ fn main() -> Result<(), slint::PlatformError> {
     let _ = tray_menu.append(&about_item);
     let _ = tray_menu.append(&exit_item);
 
-    // Load the icon for the tray
-    let icon_path = std::path::Path::new("ui/assets/icon.png");
-    let icon = if icon_path.exists() {
-        let image = image::open(icon_path).expect("Failed to open icon");
+    // Load the icon for the tray (embedded in the binary to ensure it works when installed)
+    let icon_bytes = include_bytes!("../ui/assets/icon.png");
+    let icon = {
+        let image = image::load_from_memory(icon_bytes).expect("Failed to open embedded icon");
         let (width, height) = image.dimensions();
         let rgba = image.to_rgba8().into_raw();
         tray_icon::Icon::from_rgba(rgba, width, height).ok()
-    } else {
-        None
     };
 
     let mut tray_builder = tray_icon::TrayIconBuilder::new()
