@@ -334,6 +334,7 @@ fn main() -> Result<(), slint::PlatformError> {
                         let hwnd = win32.hwnd.get() as *mut std::ffi::c_void;
                         windowing::manage_z_order(hwnd, is_fs);
                         windowing::snap_to_taskbar(hwnd);
+                        windowing::force_hide_from_taskbar(hwnd);
                     }
                 }
             }

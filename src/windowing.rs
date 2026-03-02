@@ -11,7 +11,7 @@ use windows::Win32::UI::WindowsAndMessaging::{
     WS_EX_WINDOWEDGE, WS_EX_DLGMODALFRAME, SetClassLongPtrW, GCLP_HBRBACKGROUND,
     GetForegroundWindow, GetDesktopWindow, GetShellWindow, GetClassNameW,
     GWLP_WNDPROC, CallWindowProcW, WNDPROC, WM_NCACTIVATE, WM_NCPAINT, WM_SETTEXT,
-    DefWindowProcW, GWLP_HWNDPARENT, SetWindowTextW,
+    DefWindowProcW, GWLP_HWNDPARENT, SetWindowTextW, WS_EX_TOPMOST,
 };
 use windows::Win32::UI::Controls::MARGINS;
 use windows::Win32::Graphics::Gdi::{
@@ -194,13 +194,48 @@ pub fn snap_to_taskbar(window_handle: *mut std::ffi::c_void) {
     }
 }
 
+// ── Strong Hide from Taskbar ────────────────────────────────────────────────
+pub fn force_hide_from_taskbar(window_handle: *mut std::ffi::c_void) {
+    unsafe {
+        let hwnd = HWND(window_handle as *mut _);
+        
+        // Ensure styles are set: TOOLWINDOW | NOACTIVATE | LAYERED | TOPMOST
+        let ex = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
+        let bad_ex = WS_EX_APPWINDOW.0;
+        let good_ex = WS_EX_TOOLWINDOW.0 | WS_EX_NOACTIVATE.0 | WS_EX_LAYERED.0 | WS_EX_TOPMOST.0;
+        let new_ex = (ex & !(bad_ex as isize)) | (good_ex as isize);
+        
+        if ex != new_ex {
+            let _ = SetWindowLongPtrW(hwnd, GWL_EXSTYLE, new_ex);
+        }
+
+        // Ensure owner is Taskbar
+        let owner = GetWindowLongPtrW(hwnd, GWLP_HWNDPARENT);
+        if owner == 0 {
+             if let Ok(taskbar) = FindWindowW(w!("Shell_TrayWnd"), None) {
+                if !taskbar.0.is_null() {
+                    let _ = SetWindowLongPtrW(hwnd, GWLP_HWNDPARENT, taskbar.0 as isize);
+                }
+            }
+        }
+
+        // Force empty title to prevent it showing in Alt+Tab even if styles fail briefly
+        let _ = SetWindowTextW(hwnd, w!(""));
+    }
+}
+
 // ── Apply all overlay window tricks (standalone topmost approach) ─────────────
 pub fn anchor_to_taskbar_owned(window_handle: *mut std::ffi::c_void) {
     unsafe {
         let hwnd = HWND(window_handle as *mut _);
 
-        // Detach from any parent
-        let _ = SetWindowLongPtrW(hwnd, GWLP_HWNDPARENT, 0);
+        // Use the Taskbar as the owner to hide the overlay from the taskbar 
+        // while remaining on top of the taskbar Z-order.
+        if let Ok(taskbar) = FindWindowW(w!("Shell_TrayWnd"), None) {
+            if !taskbar.0.is_null() {
+                let _ = SetWindowLongPtrW(hwnd, GWLP_HWNDPARENT, taskbar.0 as isize);
+            }
+        }
         let _ = SetParent(hwnd, None);
 
         // Install WNDPROC hook to suppress title-bar flicker
