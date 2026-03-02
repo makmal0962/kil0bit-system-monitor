@@ -28,6 +28,7 @@
     <Property Id='DiskPrompt' Value='kil0bit System Monitor Installation'/>
     <Property Id='WIXUI_INSTALLDIR' Value='APPLICATIONFOLDER' />
     <UIRef Id='WixUI_InstallDir' />
+    <WixVariable Id='WixUILicenseRtf' Value='wix\License.rtf' />
 
     <Directory Id='TARGETDIR' Name='SourceDir'>
       <Directory Id='LocalAppDataFolder'>
