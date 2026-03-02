@@ -19,16 +19,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Detect version bump commit
+      - name: Detect version bump
         id: detect
         shell: bash
         run: |
-          MSG=$(git log -1 --pretty=%s)
-          echo "Commit message: $MSG"
-          if [[ "$MSG" == chore:\ bump\ version* ]]; then
-            VERSION=$(grep '^version' Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
+          # Get current version
+          CUR_VER=$(grep '^version' Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
+          
+          # Get previous version (from parent commit)
+          # We use HEAD~1 to look at the previous state of the file
+          PREV_VER=$(git show HEAD~1:Cargo.toml | grep '^version' | head -1 | sed 's/version = "\(.*\)"/\1/')
+          
+          echo "Current: $CUR_VER, Previous: $PREV_VER"
+          
+          if [ "$CUR_VER" != "$PREV_VER" ]; then
             echo "is_bump=true" >> $GITHUB_OUTPUT
-            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            echo "version=$CUR_VER" >> $GITHUB_OUTPUT
           else
             echo "is_bump=false" >> $GITHUB_OUTPUT
           fi
