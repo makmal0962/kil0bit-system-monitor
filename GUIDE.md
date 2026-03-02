@@ -94,6 +94,9 @@ A: Make sure "Show Hardware Overlay on Taskbar" is toggled **ON** in the GENERAL
 **Q: The GPU usage shows 0% or is missing.**  
 A: GPU monitoring requires an **NVIDIA GPU**. AMD/Intel GPU usage is not yet supported.
 
+**Q: Why is GPU usage higher than Task Manager?**  
+A: Task Manager only shows "3D" gaming work. This app shows the "Raw Truth" directly from the NVIDIA driver, including background video, browser acceleration, and Windows system work.
+
 **Q: My network speed is not showing correctly.**  
 A: Go to Settings → HARDWARE CONFIG and select the correct **Network Adapter** from the dropdown.
 
