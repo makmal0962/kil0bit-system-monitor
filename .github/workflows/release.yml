@@ -50,6 +50,7 @@ jobs:
     - name: Build MSI Installer
       run: |
         # WiX v4 requires extensions to be added
+        dotnet tool install --global wix || true
         wix extension add WixToolset.UI.wixext --global
         wix build wix/main.wxs -ext WixToolset.UI.wixext -d "publish=release-output" -o Kil0bitSystemMonitor-Setup.msi
 
