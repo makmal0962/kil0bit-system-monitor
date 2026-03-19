@@ -1,4 +1,4 @@
-<?xml version='1.0' encoding='windows-1252'?>
+<?xml version='1.0' encoding='utf-8'?>
 <Wix xmlns='http://schemas.microsoft.com/wix/2006/wi'>
   <Product
     Id='*'
@@ -6,7 +6,6 @@
     UpgradeCode='E3B0C442-98FC-1C14-9AFB-D36F9B6D7F3A'
     Manufacturer='KB - kil0bit'
     Language='1033'
-    Codepage='1252'
     Version='!(bind.FileVersion.Kil0bitEXE)'>
 
     <Package
@@ -17,8 +16,7 @@
       InstallerVersion='450'
       Languages='1033'
       Compressed='yes'
-      InstallScope='perUser'
-      SummaryCodepage='1252'/>
+      InstallScope='perUser'/>
 
     <MajorUpgrade
       Schedule='afterInstallInitialize'
