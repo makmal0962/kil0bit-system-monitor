@@ -49,9 +49,9 @@ jobs:
 
     - name: Build MSI Installer
       run: |
-        # WiX v4 uses 'wix build'
-        # We need to map the 'publish' directory to what's in main.wxs
-        wix build wix/main.wxs -d "publish=release-output" -o Kil0bitSystemMonitor-Setup.msi
+        # WiX v4 requires extensions to be added
+        wix extension add WixToolset.UI.wixext --global
+        wix build wix/main.wxs -ext WixToolset.UI.wixext -d "publish=release-output" -o Kil0bitSystemMonitor-Setup.msi
 
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v2
