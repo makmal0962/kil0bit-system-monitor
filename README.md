@@ -22,7 +22,8 @@ Built with C#, WinUI 3, and raw Win32 power
 Kil0bit System Monitor is a modern successor to legacy taskbar monitors. It’s designed specifically for **Windows 11 power users** who need accurate, real-time metrics without the bloat of Electron or the overhead of high-level monitoring tools.
 
 ### 📊 Core Features
-- **🚀 Ultra-Low Overhead** — Uses low-level Win32 APIs and GDI+ for near-zero CPU usage.
+- **🚀 Zero Dependencies** — Built with .NET 10 and WinUI 3 bundled inside. No runtime download required!
+- **⚡ Ultra-Low Overhead** — Uses low-level Win32 APIs and GDI+ for near-zero CPU usage.
 - **🖥️ Taskbar Integration** — Sits directly inside your taskbar. Always visible, never in your way.
 - **📐 Flexible Layout** — Enable "Snap to Taskbar" for a native look, or disable it to **free-float** the overlay anywhere on your desktop.
 - **🏠 Interactive Dashboard** — A modern WinUI 3 control center with quick-link navigation.
