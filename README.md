@@ -44,15 +44,14 @@ Kil0bit System Monitor is a modern successor to legacy taskbar monitors. It’s 
 ![Settings Dashboard](Assets/preview/settings.png)
 
 ### 📊 Transparent Overlays
-````carousel
-![Icons Style](Assets/preview/overlay_icons.png)
-<!-- slide -->
-![Text Style](Assets/preview/overlay_text.png)
-<!-- slide -->
-![Compact Style](Assets/preview/overlay_compact.png)
-<!-- slide -->
-![Themed Styling](Assets/preview/overlay_themed.png)
-````
+
+<div align="center">
+  <img src="Assets/preview/overlay_icons.png" width="400" alt="Icons Style" />
+  <img src="Assets/preview/overlay_text.png" width="400" alt="Text Style" />
+  <br/>
+  <img src="Assets/preview/overlay_compact.png" width="400" alt="Compact Style" />
+  <img src="Assets/preview/overlay_themed.png" width="400" alt="Themed Styling" />
+</div>
 
 ---
 
