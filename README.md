@@ -2,120 +2,109 @@
 
 <div align="center">
 
-<img src="ui/assets/icon.png" width="80" height="80" alt="kil0bit System Monitor" />
+<img src="icon.png" width="100" height="100" alt="kil0bit System Monitor" />
 
-**A low-latency hardware telemetry overlay for Windows power users.**  
-Real-time monitoring of CPU, RAM, Network, and GPU — directly on your taskbar.
+**The high-precision, low-latency system monitor for Windows 11.**  
+Built with C#, WinUI 3, and raw Win32 power  
+
+[Download v2.0.0](https://github.com/kil0bit-kb/kil0bit-system-monitor/releases/latest) | [User Guide](GUIDE.md) | [Report Bug](https://github.com/kil0bit-kb/kil0bit-system-monitor/issues)
 
 [![GitHub release](https://img.shields.io/github/v/release/kil0bit-kb/kil0bit-system-monitor?style=flat-square)](https://github.com/kil0bit-kb/kil0bit-system-monitor/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
+[![.NET 10](https://img.shields.io/badge/.NET-10.0-blueviolet?style=flat-square)](https://dotnet.microsoft.com/en-us/download/dotnet/10.0)
 
 </div>
 
 ---
 
-## ✨ Features
+## ✨ Why kil0bit System Monitor?
 
-- **🖥️ Taskbar Overlay** — Sits directly inside the Windows taskbar using punch-hole transparency. Always visible, never intrusive.
-- **📊 Core Four Metrics** — CPU Usage, RAM Usage, Upload/Download Speed, and GPU Usage — all without admin rights or third-party drivers.
-- **🎨 Fully Customizable** — Choose accent color, backdrop color and opacity, font family, and display style (Standard / Compact / Icon).
-- **🔔 System Tray** — Lives quietly in the system tray. Right-click for quick access to all controls.
-- **🚀 Launch on Startup** — Optional auto-start on Windows login via registry.
-- **🔒 Lock Position** — Prevent accidental dragging of the overlay.
-- **🌑 Dark Native UI** — Settings window built with Slint, styled with dark native Windows aesthetics.
-- **⚡ Lightweight** — Pure Rust. No Electron. No .NET. No runtime required.
+Kil0bit System Monitor is a modern successor to legacy taskbar monitors. It’s designed specifically for **Windows 11 power users** who need accurate, real-time metrics without the bloat of Electron or the overhead of high-level monitoring tools.
 
----
-
-### Settings Window
-<div align="center">
-<img src="ui/assets/settings_preview.png" width="600" alt="kil0bit System Monitor Settings" />
-</div>
+### 📊 Core Features
+- **🚀 Ultra-Low Overhead** — Uses low-level Win32 APIs and GDI+ for near-zero CPU usage.
+- **🖥️ Taskbar Integration** — Sits directly inside your taskbar. Always visible, never in your way.
+- **📐 Flexible Layout** — Enable "Snap to Taskbar" for a native look, or disable it to **free-float** the overlay anywhere on your desktop.
+- **🏠 Interactive Dashboard** — A modern WinUI 3 control center with quick-link navigation.
+- **🎨 Pixel-Perfect Design** — Glassmorphism, Mica effects, and fully customizable themes.
+- **🛡️ High-DPI Ready** — Precision rendering that looks sharp on 4K, Ultrawides, and multi-monitor setups.
+- **⚙️ Power-User Settings** — Customize sensors (CPU, GPU, Network), colors, and smart startup behavior.
 
 ---
 
-### 🎨 Display Variants
-Customize how much information you see and how it's styled.
+## ✨ v2.0.0 Highlights
+- **🚀 C#/.NET 10.0 Engine**: Re-engineered for maximum performance and ultra-low CPU overhead.
+- **🏠 Interactive Dashboard**: A sleek, zero-scroll Control Center with quick-link navigation.
+- **🎨 Custom Styling**: New Pro Themes (Cyberpunk, Matrix, Stealth) and high-DPI icons.
+- **🛡️ Smart Monitoring**: Zero-allocation GDI+ rendering with background/foreground smart detection.
 
-**Standard Style**
-<img src="ui/assets/overlay_standard.png" width="800" alt="Standard Style" />
+## 📸 Screenshots
 
-**Compact Style**
-<img src="ui/assets/overlay_compact.png" width="800" alt="Compact Style" />
+### 🛠️ Professional Dashboard
+![Settings Dashboard](Assets/preview/settings.png)
 
-**Icon Style**
-<img src="ui/assets/overlay_icons.png" width="800" alt="Icon Style" />
-
-**Custom Colors (e.g. Green Accent)**
-<img src="ui/assets/overlay_green.png" width="800" alt="Custom Green Style" />
+### 📊 Transparent Overlays
+````carousel
+![Icons Style](Assets/preview/overlay_icons.png)
+<!-- slide -->
+![Text Style](Assets/preview/overlay_text.png)
+<!-- slide -->
+![Compact Style](Assets/preview/overlay_compact.png)
+<!-- slide -->
+![Themed Styling](Assets/preview/overlay_themed.png)
+````
 
 ---
 
 ## 📥 Installation
 
-### Option 1: Download Installer (Recommended)
-1. Go to the [**Releases**](https://github.com/kil0bit-kb/kil0bit-system-monitor/releases) page.
-2. Download the latest **`kil0bit-system-monitor-setup.msi`** and run it.
-3. Launch **kil0bit System Monitor** from the Start Menu or system tray.
+### 1. Download the Artifacts
+Head over to the [**Releases**](https://github.com/kil0bit-kb/kil0bit-system-monitor/releases) page and download:
+- **`Kil0bitSystemMonitor.exe`**: A self-contained, portable executable.
 
-### Option 2: Portable EXE
-1. Download **`kil0bit-system-monitor.exe`** from [Releases](https://github.com/kil0bit-kb/kil0bit-system-monitor/releases).
-2. Place it anywhere and run it directly. No installation needed.
+### 2. Run & Enjoy
+Just double-click the EXE. The app will automatically initialize the overlay and open the Settings dashboard for your first configuration.
 
 ---
 
 ## 🔨 Build from Source
 
 ### Prerequisites
-- [Rust (stable)](https://rustup.rs/) — `rustup install stable`
-- Windows 10/11 (64-bit)
+- **Visual Studio 2022** (17.10+) with the "Windows App Development" workload.
+- **.NET 10.0 SDK**.
+- **Windows 11** (recommended) or Windows 10 (Build 19041+).
 
 ### Steps
-
-```sh
+```powershell
 # Clone the repository
 git clone https://github.com/kil0bit-kb/kil0bit-system-monitor.git
 cd kil0bit-system-monitor
 
-# Build in release mode
-cargo build --release
+# Build the project
+dotnet build -c Release
 ```
-
-The compiled binary will be at `target/release/kil0bit-system-monitor.exe`.
+The resulting executable will be in `kil0bit-system-monitor/bin/Release/net10.0-windows10.0.19041.0/win-x64/`.
 
 ---
 
-## 🧰 Tech Stack
+## 🧰 The Tech Stack
 
-| Component | Technology |
+| Layer | Technology |
 |---|---|
-| Language | Rust (stable) |
-| UI Framework | [Slint](https://slint.dev/) |
-| System Info | [sysinfo](https://github.com/GuillaumeGomez/sysinfo) |
-| GPU Telemetry | [nvml-wrapper](https://github.com/Cldfire/nvml-wrapper) |
-| Windows APIs | [windows-rs](https://github.com/microsoft/windows-rs) |
-| Tray Icon | [tray-icon](https://github.com/tauri-apps/tray-icon) |
+| **Language** | C# 13 |
+| **Framework** | [WinUI 3 (Windows App SDK)](https://learn.microsoft.com/en-us/windows/apps/winui/winui3/) |
+| **Runtime** | .NET 10.0 |
+| **Graphics** | Win32 GDI+ (BitBlt, AlphaBlend) |
+| **Persistence** | JSON (`ConfigService`) |
 
 ---
 
-## 🌐 Links
+## ❤️ Credits & Support
 
 | Platform | Link |
 |---|---|
 | 📺 YouTube | [@kilObit](https://www.youtube.com/@kilObit) |
 | ✍️ Blog | [kil0bit.blogspot.com](https://kil0bit.blogspot.com/) |
-| 🐙 GitHub | [kil0bit-kb](https://github.com/kil0bit-kb) |
-| 🐦 X (Twitter) | [@kil0bit](https://x.com/kil0bit) |
-| ❤️ Patreon | [Support Me](https://www.patreon.com/cw/KB_kilObit) |
+| ❤️ Support the Dev | [Patreon](https://www.patreon.com/cw/KB_kilObit) |
 
----
-
-## 📄 License
-
-This project is licensed under the [MIT License](LICENSE).
-
----
-
-<div align="center">
-Built with ❤️ by <strong>KB - kil0bit</strong>
-</div>
+Built with ❤️ by **KB - kil0bit**.

@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "Kil0bitSystemMonitor (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "Kil0bitSystemMonitor (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}

@@ -1,119 +1,92 @@
-name: Release
+name: Manual Release
 
 on:
-  push:
-    branches: [ main ]
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to release (e.g. 1.0.0)'
+        description: 'New Version (e.g. 1.4.1)'
         required: true
+        default: '2.0.0'
 
 jobs:
-  check-bump:
-    if: github.event_name == 'push'
-    runs-on: ubuntu-latest
-    outputs:
-      is_bump: ${{ steps.detect.outputs.is_bump }}
-      version: ${{ steps.detect.outputs.version }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Detect version bump
-        id: detect
-        shell: bash
-        run: |
-          # Get current version
-          CUR_VER=$(grep '^version' Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
-          
-          # Get previous version (from parent commit)
-          PREV_VER=$(git show HEAD~1:Cargo.toml | grep '^version' | head -1 | sed 's/version = "\(.*\)"/\1/')
-          
-          echo "Current: $CUR_VER, Previous: $PREV_VER"
-          
-          # Check if tag already exists
-          if git rev-parse "v$CUR_VER" >/dev/null 2>&1; then
-            echo "Tag v$CUR_VER already exists. Skipping release."
-            echo "is_bump=false" >> $GITHUB_OUTPUT
-          elif [ "$CUR_VER" != "$PREV_VER" ]; then
-            echo "Version bumped. Triggering release."
-            echo "is_bump=true" >> $GITHUB_OUTPUT
-            echo "version=$CUR_VER" >> $GITHUB_OUTPUT
-          else
-            echo "is_bump=false" >> $GITHUB_OUTPUT
-          fi
-
   release:
-    needs: [ check-bump ]
-    if: |
-      always() && (
-        (github.event_name == 'push' && needs.check-bump.outputs.is_bump == 'true') ||
-        github.event_name == 'workflow_dispatch'
-      )
+    runs-on: windows-latest
     permissions:
       contents: write
-    runs-on: windows-latest
+
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
 
-      - name: Set version (manual trigger)
-        if: github.event_name == 'workflow_dispatch'
-        shell: bash
-        run: echo "RELEASE_VERSION=${{ github.event.inputs.version }}" >> $GITHUB_ENV
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 10.0.x
 
-      - name: Set version (auto trigger)
-        if: github.event_name == 'push'
-        shell: bash
-        run: echo "RELEASE_VERSION=${{ needs.check-bump.outputs.version }}" >> $GITHUB_ENV
+    - name: Set Version in Project
+      shell: pwsh
+      run: |
+        $version = "${{ github.event.inputs.version }}"
+        $csproj = "kil0bit-system-monitor/Kil0bitSystemMonitor.csproj"
+        $xml = [xml](Get-Content $csproj)
+        $propertyGroup = $xml.Project.PropertyGroup[0]
+        
+        if ($propertyGroup.Version) {
+            $propertyGroup.Version = $version
+        } else {
+            $versionElement = $xml.CreateElement("Version")
+            $versionElement.InnerText = $version
+            $propertyGroup.AppendChild($versionElement)
+        }
+        $xml.Save($csproj)
+        Write-Host "Set version to $version in $csproj"
 
-      - name: Install Rust (stable)
-        uses: dtolnay/rust-toolchain@stable
+    - name: Restore dependencies
+      run: dotnet restore kil0bit-system-monitor/Kil0bitSystemMonitor.csproj
 
-      - name: Rust Cache
-        uses: swatinem/rust-cache@v2
+    - name: Publish Portable EXE
+      run: |
+        dotnet publish kil0bit-system-monitor/Kil0bitSystemMonitor.csproj `
+          -c Release `
+          -r win-x64 `
+          --self-contained true `
+          -p:PublishSingleFile=true `
+          -o release-output
 
-      - name: Build Release EXE
-        run: cargo build --release
+    - name: Install WiX Toolset
+      run: dotnet tool install --global wix --version 4.0.1
 
-      - name: Install cargo-wix
-        run: cargo install cargo-wix
+    - name: Build MSI Installer
+      run: |
+        # WiX v4 uses 'wix build'
+        # We need to map the 'publish' directory to what's in main.wxs
+        cd kil0bit-system-monitor
+        wix build wix/main.wxs -d "publish=../release-output" -o ../Kil0bitSystemMonitor-Setup.msi
 
-      - name: Build MSI Installer
-        run: cargo wix --no-build --nocapture
-
-      - name: Push version tag
-        shell: bash
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag "v${{ env.RELEASE_VERSION }}" || true
-          git push origin "v${{ env.RELEASE_VERSION }}" || true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Create GitHub Release (Draft)
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v${{ env.RELEASE_VERSION }}
-          name: kil0bit System Monitor v${{ env.RELEASE_VERSION }}
-          draft: true
-          prerelease: false
-          body: |
-            ## kil0bit System Monitor v${{ env.RELEASE_VERSION }}
-
-            A low-latency hardware telemetry overlay for the Windows taskbar.
-
-            ### Download
-            - **`kil0bit-system-monitor-setup.msi`** — Installer (recommended)
-            - **`kil0bit-system-monitor.exe`** — Portable binary (no install needed)
-
-            See [CHANGELOG.md](https://github.com/kil0bit-kb/kil0bit-system-monitor/blob/main/CHANGELOG.md) for what's new.
-          files: |
-            target/release/kil0bit-system-monitor.exe
-            target/wix/*.msi
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: v${{ github.event.inputs.version }}
+        name: Kil0bit System Monitor v${{ github.event.inputs.version }}
+        draft: true
+        prerelease: false
+        body: |
+          ## Kil0bit System Monitor v${{ github.event.inputs.version }}
+          
+          The ultimate high-precision telemetry overlay for Windows 11.
+          
+          ### 📦 Artifacts
+          - **`Kil0bitSystemMonitor.exe`**: Portable Single-File Binary.
+          - **`Kil0bitSystemMonitor-Setup.msi`**: Professional Installer.
+          
+          ### 🚀 Changes
+          - Refined interactive Home dashboard.
+          - Smart startup background/foreground detection.
+          - Multi-monitor High-DPI precision.
+          - Ultra-low CPU usage (<0.5%).
+        files: |
+          release-output/Kil0bitSystemMonitor.exe
+          Kil0bitSystemMonitor-Setup.msi
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

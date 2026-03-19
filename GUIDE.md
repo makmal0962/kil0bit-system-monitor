@@ -1,119 +1,83 @@
-# kil0bit System Monitor — User Guide
+# kil0bit System Monitor — User Guide (v2.0.0)
 
-> A quick-start guide for using the hardware telemetry overlay.
+A complete guide to using, customizing, and mastering your hardware telemetry overlay.
 
 ---
 
-## 📦 Installation
+## 🛠️ Getting Started
 
-1. Download the latest **`.msi`** installer or the portable **`.exe`** from [Releases](https://github.com/kil0bit-kb/kil0bit-system-monitor/releases).
-2. Run the installer (MSI) — it installs per-user with no admin required.
-3. Launch **kil0bit System Monitor** from the Start Menu or by running the `.exe` directly.
+### 1. Installation
+- Download the latest **`Kil0bitSystemMonitor.exe`** from [GitHub Releases](https://github.com/kil0bit-kb/kil0bit-system-monitor/releases).
+- Launch the EXE. No installation is required; the app is fully portable.
 
 ---
 
 ## 🖥️ The Overlay
 
-When enabled, a slim pill-shaped overlay appears directly on your **Windows taskbar** showing live hardware stats:
+The overlay is a slim, elegant pill that sits directly on your **Windows 11 taskbar**. It displays real-time telemetry from your hardware:
 
-| Metric | Description |
-|--------|-------------|
-| **CPU** | Total CPU usage percentage |
-| **RAM** | System RAM usage percentage |
-| **UP / DN** | Network upload and download speed |
-| **GPU** | GPU usage percentage |
-| **GPU Temp** | GPU temperature in °C |
+### 📈 Included Metrics
+- **CPU**: Total processor load percentage.
+- **RAM**: Real-time memory pressure.
+- **NET**: Combined Upload and Download speeds.
+- **GPU**: Raw load from your graphics processor.
 
-### Moving the Overlay
-- Click and **drag** the overlay to reposition it along the taskbar.
-- Enable **Lock Overlay Position** in Settings (or via right-click menu) to prevent accidental movement.
-
-### Right-Click Menu
-Right-clicking the overlay gives you quick access to:
-- **Settings** — Open the settings window
-- **Task Manager** — Launch Windows Task Manager
-- **Lock Position** — Toggle drag lock
-- **About** — View app info and links
-- **Exit** — Quit the application
+### 🖱️ Overlay Controls
+- **Drag & Move**: Left-click and drag the overlay to reposition it.
+- **Snap to Taskbar**: When enabled, the overlay snaps to the taskbar area. Disable this to **free-float** the overlay anywhere on your screen.
+- **Toggle Lock**: Right-click the overlay and select **Lock Position** to prevent any accidental movement.
+- **Settings**: Right-click to quickly jump into the dashboard.
 
 ---
 
-## ⚙️ Settings Window
+## 🏠 Home Dashboard
 
-Open Settings by clicking the system tray icon or right-clicking the overlay.
-
-### GENERAL
-| Option | Description |
-|--------|-------------|
-| Show Hardware Overlay on Taskbar | Toggle the overlay on/off |
-| Lock Overlay Position | Prevent the overlay from being dragged |
-| Launch on Windows Startup | Auto-start with Windows via registry |
-
-### MONITOR CONTENT
-Toggle which metrics are visible on the overlay:
-- CPU Usage, RAM Usage, GPU Usage
-- Upload Speed, Download Speed, GPU Temperature
-
-### HARDWARE CONFIG
-- **Network Adapter** — Select which adapter to monitor for upload/download speeds
-- **Display Style** — Choose between **Standard**, **Compact**, or **Icon** display modes
-
-### THEME & DESIGN
-- **Accent Color** — Choose the color of the text/icons on the overlay
-- **Backdrop Color** — Choose the overlay background color (includes a transparent option)
-- **Backdrop Opacity** — Drag to adjust how opaque the background pill is (0–100%)
-- **Font Family** — Pick the font used in the overlay
+The Home dashboard is your high-level control center. It features four primary quick-links:
+1. **General**: Configure startup behavior and app lifecycle.
+2. **Monitoring**: Select which hardware sensors to track.
+3. **Appearance**: Customize font, colors, and styling.
+4. **About**: View version history and developer links.
 
 ---
 
-## 🔔 System Tray
+## ⚙️ Core Configuration
 
-The app lives in the **system tray** (bottom-right of your taskbar) when the Settings window is closed.
+Open the **Settings Window** to customize your experience:
 
-- **Left-click** the tray icon → opens Settings
-- **Right-click** → shows the quick menu (same options as overlay right-click)
+### 🚀 General Settings
+- **Hardware Overlay**: Toggle the entire overlay on or off.
+- **Snap to Taskbar**: Enable to snap to the taskbar; disable to **unlock** it so you can position the overlay anywhere on your desktop.
+- **Launch on Startup**: Enable this to start monitoring automatically when you log in to Windows.
+- **Lock Position**: Lock the overlay in its current location.
 
-To completely quit the app, click **Exit** in the tray menu or use the red **Quit Application** button in Settings.
+### 📊 Monitoring & Sensors
+- **Sensor Selection**: Choose which metrics you want to see.
+- **Network Adapter**: If you have multiple network cards (Wi-Fi, Ethernet, VPN), pick the one you want to track.
 
-> ⚠️ Closing the Settings window with **X** or clicking **Save & Close** does **not** quit the app — it continues running in the tray to keep your overlay active.
-
----
-
-## 💾 Saving Settings
-
-- Click **Save & Close Settings** — saves all changes and hides the Settings window to tray.
-- Settings are automatically saved to your AppData folder and restored on the next launch.
-
----
-
-## ❓ FAQ
-
-**Q: The overlay isn't showing up on the taskbar.**  
-A: Make sure "Show Hardware Overlay on Taskbar" is toggled **ON** in the GENERAL section of Settings.
-
-**Q: The GPU usage shows 0% or is missing.**  
-A: GPU monitoring requires an **NVIDIA GPU**. AMD/Intel GPU usage is not yet supported.
-
-**Q: Why is GPU usage higher than Task Manager?**  
-A: Task Manager only shows "3D" gaming work. This app shows the "Raw Truth" directly from the NVIDIA driver, including background video, browser acceleration, and Windows system work.
-
-**Q: My network speed is not showing correctly.**  
-A: Go to Settings → HARDWARE CONFIG and select the correct **Network Adapter** from the dropdown.
-
-**Q: How do I uninstall?**  
-A: Use **Settings → Apps** in Windows and search for "kil0bit System Monitor", then click Uninstall.
+### 🎨 Appearance & Design
+- **Accent Color**: Pick a color that matches your Windows theme.
+- **Font Selection**: Choose from high-legibility fonts (Segoe UI, Outfit, Inter).
+- **Design Mode**: Toggle between **Standard**, **Compact**, and **Icon** modes for different levels of detail.
 
 ---
 
-## 🌐 Links
+## ❓ Troubleshooting
 
-| | |
-|---|---|
-| 📺 YouTube | [@kilObit](https://www.youtube.com/@kilObit) |
-| ✍️ Blog | [kil0bit.blogspot.com](https://kil0bit.blogspot.com/) |
-| 🐙 GitHub | [kil0bit-kb](https://github.com/kil0bit-kb) |
-| ❤️ Support | [Patreon](https://www.patreon.com/cw/KB_kilObit) |
+**Q: The overlay is missing!**  
+A: Go to **General** settings and ensure "Show Hardware Overlay" is toggled **ON**.
+
+**Q: Why doesn't the app start with Windows?**  
+A: Ensure "Launch on Windows Startup" is enabled. Note that this requires the app to remain in the same folder where you first enabled the setting.
+
+**Q: Windows says "Unknown Publisher" or "SmartScreen" prevents it from running.**  
+A: This happens because the app is a local, independent release. Click **"More Info"** and then **"Run Anyway"**. The app is 100% safe and builds are verified via [GitHub Actions](https://github.com/kil0bit-kb/kil0bit-system-monitor/actions).
+
+**Q: My network speed shows 0 KB/s.**  
+A: In **Monitoring** settings, select the correct active Network Adapter from the dropdown menu.
 
 ---
 
-*Built with ❤️ by KB - kil0bit*
+## 🌐 Community & Support
+
+Built with ❤️ by **KB - kil0bit**.
+For feedback, bug reports, or feature requests, visit the [GitHub Repository](https://github.com/kil0bit-kb/kil0bit-system-monitor).

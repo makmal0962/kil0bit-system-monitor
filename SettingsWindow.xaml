@@ -1,0 +1,430 @@
+<Window
+    x:Class="Kil0bitSystemMonitor.SettingsWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:local="using:Kil0bitSystemMonitor"
+    mc:Ignorable="d"
+    Title="Kil0bit System Monitor Settings">
+
+    <Grid x:Name="SettingsRoot" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}" Loaded="SettingsRoot_Loaded">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Custom Title Bar Area -->
+        <Grid x:Name="AppTitleBar" Height="32" VerticalAlignment="Top" Background="Transparent">
+            <!-- Icon and Title -->
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
+                <Image x:Name="AppIcon" Width="16" Height="16" Margin="0,0,8,0" Source="icon.png" />
+                <TextBlock x:Name="AppTitleText" Text="Kil0bit System Monitor Settings" Style="{ThemeResource CaptionTextBlockStyle}" Opacity="0.7" />
+            </StackPanel>
+        </Grid>
+
+        <NavigationView x:Name="SettingsNav" 
+                        Grid.Row="1"
+                        PaneDisplayMode="Left"
+                        OpenPaneLength="200"
+                        IsBackButtonVisible="Collapsed"
+                        IsSettingsVisible="False"
+                        SelectionChanged="SettingsNav_SelectionChanged">
+            <NavigationView.MenuItems>
+                <NavigationViewItem Content="Home" Tag="Home" IsSelected="True">
+                    <NavigationViewItem.Icon>
+                        <SymbolIcon Symbol="Home" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+                <NavigationViewItem Content="General" Tag="General">
+                    <NavigationViewItem.Icon>
+                        <SymbolIcon Symbol="Setting" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+                <NavigationViewItem Content="Monitoring" Tag="Monitoring">
+                    <NavigationViewItem.Icon>
+                        <SymbolIcon Symbol="FourBars" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+                <NavigationViewItem Content="Appearance" Tag="Appearance">
+                    <NavigationViewItem.Icon>
+                        <SymbolIcon Symbol="Edit" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+                <NavigationViewItem Content="About" Tag="About">
+                    <NavigationViewItem.Icon>
+                        <SymbolIcon Symbol="Help" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+            </NavigationView.MenuItems>
+
+            <ScrollViewer Padding="24" HorizontalAlignment="Stretch">
+                <StackPanel Spacing="20" MaxWidth="800" HorizontalAlignment="Left">
+                    <!-- Home Section -->
+                    <StackPanel x:Name="HomeSection" Spacing="20" Visibility="Visible">
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="Welcome" FontSize="36" FontWeight="SemiBold" Foreground="{ThemeResource SystemAccentColor}" />
+                            <TextBlock Text="Kil0bit System Monitor is active and tracking your hardware performance with near-zero overhead." 
+                                       FontSize="16" Opacity="0.8" TextWrapping="Wrap" MaxWidth="600" />
+                        </StackPanel>
+
+                        <Grid HorizontalAlignment="Left" ColumnSpacing="12" RowSpacing="10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="260" />
+                                <ColumnDefinition Width="260" />
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            
+                            <!-- General Card -->
+                            <Button x:Name="HomeGeneralBtn" Grid.Column="0" Grid.Row="0" Click="HomeCard_Click" Tag="General" Width="260" Height="100" Padding="0" Background="Transparent" BorderThickness="0">
+                                <StackPanel Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" Padding="14,12" CornerRadius="8" Spacing="4" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                                    <StackPanel Orientation="Horizontal" Spacing="10">
+                                        <SymbolIcon Symbol="Setting" Foreground="{ThemeResource SystemAccentColor}" />
+                                        <TextBlock Text="General" FontWeight="SemiBold" FontSize="15" />
+                                    </StackPanel>
+                                    <TextBlock Text="Manage startup behavior and core settings." Opacity="0.6" FontSize="12" TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Button>
+
+                            <!-- Monitoring Card -->
+                            <Button x:Name="HomeMonitoringBtn" Grid.Column="1" Grid.Row="0" Click="HomeCard_Click" Tag="Monitoring" Width="260" Height="100" Padding="0" Background="Transparent" BorderThickness="0">
+                                <StackPanel Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" Padding="14,12" CornerRadius="8" Spacing="4" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                                    <StackPanel Orientation="Horizontal" Spacing="10">
+                                        <SymbolIcon Symbol="FourBars" Foreground="{ThemeResource SystemAccentColor}" />
+                                        <TextBlock Text="Monitoring" FontWeight="SemiBold" FontSize="15" />
+                                    </StackPanel>
+                                    <TextBlock Text="Select your CPU, GPU, and Network sensors." Opacity="0.6" FontSize="12" TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Button>
+
+                            <!-- Appearance Card -->
+                            <Button x:Name="HomeAppearanceBtn" Grid.Column="0" Grid.Row="1" Click="HomeCard_Click" Tag="Appearance" Width="260" Height="100" Padding="0" Background="Transparent" BorderThickness="0">
+                                <StackPanel Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" Padding="14,12" CornerRadius="8" Spacing="4" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                                    <StackPanel Orientation="Horizontal" Spacing="10">
+                                        <SymbolIcon Symbol="Edit" Foreground="{ThemeResource SystemAccentColor}" />
+                                        <TextBlock Text="Appearance" FontWeight="SemiBold" FontSize="15" />
+                                    </StackPanel>
+                                    <TextBlock Text="Customize themes, colors, and positioning." Opacity="0.6" FontSize="12" TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Button>
+
+                            <!-- About Card -->
+                            <Button x:Name="HomeAboutBtn" Grid.Column="1" Grid.Row="1" Click="HomeCard_Click" Tag="About" Width="260" Height="100" Padding="0" Background="Transparent" BorderThickness="0">
+                                <StackPanel Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" Padding="14,12" CornerRadius="8" Spacing="4" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                                    <StackPanel Orientation="Horizontal" Spacing="10">
+                                        <SymbolIcon Symbol="Help" Foreground="{ThemeResource SystemAccentColor}" />
+                                        <TextBlock Text="About" FontWeight="SemiBold" FontSize="15" />
+                                    </StackPanel>
+                                    <TextBlock Text="Version info, support, and social links." Opacity="0.6" FontSize="12" TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Button>
+                        </Grid>
+
+                        <InfoBar IsOpen="True" Severity="Success" IsClosable="False" Title="Performance Note" 
+                                 Message="Your system is being monitored using low-level Win32 APIs for maximum precision." />
+                    </StackPanel>
+
+                    <!-- General Section -->
+                    <StackPanel x:Name="GeneralSection" Spacing="12" Visibility="Collapsed">
+                        <TextBlock Text="General Settings" Style="{ThemeResource TitleTextBlockStyle}" Foreground="#00CCFF" FontSize="20"/>
+                        <Grid ColumnSpacing="20" RowSpacing="20">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <ToggleSwitch Grid.Row="0" Grid.Column="0" Header="Show Overlay" IsOn="{Binding Config.ShowOverlay, Mode=TwoWay}" FontSize="12" OnContent="" OffContent="" ToolTipService.ToolTip="Show/Hide the overlay."/>
+                            <ToggleSwitch Grid.Row="0" Grid.Column="1" Header="Lock Position" IsOn="{Binding Config.LockPosition, Mode=TwoWay}" FontSize="12" OnContent="" OffContent="" ToolTipService.ToolTip="Prevent accidental dragging."/>
+                            <ToggleSwitch Grid.Row="0" Grid.Column="2" Header="Run at Startup" IsOn="{Binding Config.LaunchOnStartup, Mode=TwoWay}" FontSize="12" OnContent="" OffContent="" ToolTipService.ToolTip="Startup with Windows."/>
+
+                            <ToggleSwitch Grid.Row="1" Grid.Column="0" Header="Hide in Games" IsOn="{Binding Config.HideOnFullscreen, Mode=TwoWay}" FontSize="12" OnContent="" OffContent="" ToolTipService.ToolTip="Hide during games/movies."/>
+                            <ToggleSwitch Grid.Row="1" Grid.Column="1" Header="Snap to Taskbar" IsOn="{Binding Config.StickToTaskbar, Mode=TwoWay}" FontSize="12" OnContent="" OffContent="" ToolTipService.ToolTip="Keep pinned to the taskbar area."/>
+
+                        </Grid>
+                    </StackPanel>
+
+                    <!-- Monitoring Metrics Section -->
+                    <!-- Hardware Monitoring Section -->
+                    <StackPanel x:Name="MonitoringSection" Spacing="16" Visibility="Visible">
+                        <TextBlock Text="Hardware Monitoring" Style="{ThemeResource TitleTextBlockStyle}" Foreground="#00CCFF" FontSize="20"/>
+                        
+                        <Grid ColumnSpacing="12" RowSpacing="12">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+
+                            <ToggleSwitch Grid.Row="0" Grid.Column="0" Header="CPU Usage" IsOn="{Binding Config.ShowCpu, Mode=TwoWay}" FontSize="12" OnContent="" OffContent="" VerticalAlignment="Bottom" ToolTipService.ToolTip="Processor utilization."/>
+                            <ToggleSwitch Grid.Row="0" Grid.Column="1" Header="RAM Usage" IsOn="{Binding Config.ShowRam, Mode=TwoWay}" FontSize="12" OnContent="" OffContent="" VerticalAlignment="Bottom" ToolTipService.ToolTip="Memory usage."/>
+                            <ToggleSwitch Grid.Row="0" Grid.Column="2" Header="GPU Usage" IsOn="{Binding Config.ShowGpu, Mode=TwoWay}" FontSize="12" OnContent="" OffContent="" VerticalAlignment="Bottom" ToolTipService.ToolTip="Graphics utilization."/>
+                            <ToggleSwitch Grid.Row="0" Grid.Column="3" Header="Upload" IsOn="{Binding Config.ShowNetUp, Mode=TwoWay}" FontSize="12" OnContent="" OffContent="" VerticalAlignment="Bottom" ToolTipService.ToolTip="Outgoing traffic."/>
+                            
+                            <ToggleSwitch Grid.Row="1" Grid.Column="0" Header="Download" IsOn="{Binding Config.ShowNetDown, Mode=TwoWay}" FontSize="12" OnContent="" OffContent="" VerticalAlignment="Bottom" ToolTipService.ToolTip="Incoming traffic."/>
+                            <ToggleSwitch Grid.Row="1" Grid.Column="1" Header="Disk Usage" IsOn="{Binding Config.ShowDisk, Mode=TwoWay}" FontSize="12" OnContent="" OffContent="" VerticalAlignment="Bottom" ToolTipService.ToolTip="Drive activity."/>
+                            <ToggleSwitch Grid.Row="1" Grid.Column="2" Header="Temperature" IsOn="{Binding Config.ShowTemp, Mode=TwoWay}" FontSize="12" OnContent="" OffContent="" VerticalAlignment="Bottom" ToolTipService.ToolTip="GPU Temperature sensor."/>
+                        </Grid>
+
+                        <Border Background="#1AFFFFFF" Height="1" Margin="0,4"/>
+
+                        <Grid ColumnSpacing="12" RowSpacing="12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" Spacing="2">
+                                <TextBlock Text="Network Adapter" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}" FontSize="11"/>
+                                <ComboBox SelectedValue="{Binding Config.NetworkAdapter, Mode=TwoWay}" 
+                                          SelectedValuePath="Content" FontSize="13" Height="32"
+                                          HorizontalAlignment="Stretch" x:Name="NetAdapterCombo"
+                                          ToolTipService.ToolTip="Select interface for traffic tracking.">
+                                    <ComboBoxItem Content="Default" />
+                                </ComboBox>
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="1" Spacing="2">
+                                <TextBlock Text="Graphics Card" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}" FontSize="11"/>
+                                <ComboBox SelectedValue="{Binding Config.GpuAdapter, Mode=TwoWay}" 
+                                          SelectedValuePath="Content" FontSize="13" Height="32"
+                                          HorizontalAlignment="Stretch" x:Name="GpuAdapterCombo"
+                                          ToolTipService.ToolTip="Primary card for load/thermal tracking.">
+                                    <ComboBoxItem Content="Default" />
+                                </ComboBox>
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="2" Spacing="2">
+                                <TextBlock Text="Storage Drive" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}" FontSize="11"/>
+                                <ComboBox SelectedValue="{Binding Config.DiskDrive, Mode=TwoWay}" 
+                                          SelectedValuePath="Content" FontSize="13" Height="32"
+                                          HorizontalAlignment="Stretch" x:Name="DiskDriveCombo"
+                                          ToolTipService.ToolTip="Target volume for activity monitoring.">
+                                    <ComboBoxItem Content="All" />
+                                </ComboBox>
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+
+                    <!-- Appearance Section -->
+                    <!-- Appearance Section -->
+                    <StackPanel x:Name="AppearanceSection" Spacing="16" Visibility="Collapsed">
+                        <TextBlock Text="Appearance" Style="{ThemeResource TitleTextBlockStyle}" Foreground="#00CCFF" FontSize="20"/>
+                        
+                        <!-- Section: Presets -->
+                        <Grid ColumnSpacing="12" RowSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="2*" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            
+                            <StackPanel Grid.Column="0" Spacing="2">
+                                <TextBlock Text="Pro Themes" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}" FontSize="11"/>
+                                <ComboBox SelectedValue="{Binding Config.Theme, Mode=TwoWay}" 
+                                          SelectedValuePath="Content" HorizontalAlignment="Stretch" Name="ThemeCombo"
+                                          SelectionChanged="ThemeCombo_SelectionChanged" FontSize="13">
+                                    <ComboBoxItem Content="Default" />
+                                    <ComboBoxItem Content="Cyberpunk" />
+                                    <ComboBoxItem Content="Matrix" />
+                                    <ComboBoxItem Content="Stealth" />
+                                    <ComboBoxItem Content="Synthwave" />
+                                    <ComboBoxItem Content="Midnight Gold" />
+                                    <ComboBoxItem Content="Frost" />
+                                    <ComboBoxItem Content="Inferno" />
+                                    <ComboBoxItem Content="Toxic" />
+                                    <ComboBoxItem Content="Nordic" />
+                                </ComboBox>
+                            </StackPanel>
+
+                            <Button Grid.Column="1" Content="Reset Defaults" Click="ResetAppearance_Click" 
+                                    VerticalAlignment="Bottom" HorizontalAlignment="Stretch" Height="32"
+                                    Background="#333333" Foreground="White" FontSize="11"/>
+                        </Grid>
+
+                        <Border Background="#1AFFFFFF" Height="1" Margin="0,2"/>
+
+                        <!-- Section: Styling (Colors & Fonts) -->
+                        <Grid ColumnSpacing="12" RowSpacing="12">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Row="0" Grid.Column="0" Spacing="2">
+                                <TextBlock Text="Metric Accent" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}" FontSize="11"/>
+                                <DropDownButton Content="Values" HorizontalAlignment="Stretch" Height="32">
+                                    <DropDownButton.Flyout>
+                                        <Flyout>
+                                            <ColorPicker Color="{Binding Config.AccentColor, Mode=TwoWay}" 
+                                                        IsAlphaEnabled="False" IsHexInputVisible="True" IsMoreButtonVisible="False"/>
+                                        </Flyout>
+                                    </DropDownButton.Flyout>
+                                </DropDownButton>
+                            </StackPanel>
+
+                            <StackPanel Grid.Row="0" Grid.Column="1" Spacing="2">
+                                <TextBlock Text="Icon Tone" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}" FontSize="11"/>
+                                <DropDownButton Content="Icons" HorizontalAlignment="Stretch" Height="32">
+                                    <DropDownButton.Flyout>
+                                        <Flyout>
+                                            <ColorPicker Color="{Binding Config.IconColor, Mode=TwoWay}" 
+                                                        IsAlphaEnabled="False" IsHexInputVisible="True" IsMoreButtonVisible="False"/>
+                                        </Flyout>
+                                    </DropDownButton.Flyout>
+                                </DropDownButton>
+                            </StackPanel>
+
+                            <StackPanel Grid.Row="0" Grid.Column="2" Spacing="2">
+                                <TextBlock Text="Backplate" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}" FontSize="11"/>
+                                <DropDownButton Content="Plate" HorizontalAlignment="Stretch" Height="32">
+                                    <DropDownButton.Flyout>
+                                        <Flyout>
+                                            <ColorPicker Color="{Binding Config.BackgroundColor, Mode=TwoWay}" 
+                                                        IsAlphaEnabled="True" IsHexInputVisible="True" IsMoreButtonVisible="False"/>
+                                        </Flyout>
+                                    </DropDownButton.Flyout>
+                                </DropDownButton>
+                            </StackPanel>
+
+                            <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Spacing="2">
+                                <TextBlock Text="Typography" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}" FontSize="11"/>
+                                <ComboBox SelectedValue="{Binding Config.FontFamily, Mode=TwoWay}" 
+                                          SelectedValuePath="Content" FontSize="13" HorizontalAlignment="Stretch" Height="32">
+                                    <ComboBoxItem Content="Segoe UI" />
+                                    <ComboBoxItem Content="Segoe UI Variable Display" />
+                                    <ComboBoxItem Content="Arial" />
+                                    <ComboBoxItem Content="Calibri" />
+                                    <ComboBoxItem Content="Tahoma" />
+                                    <ComboBoxItem Content="Verdana" />
+                                    <ComboBoxItem Content="Trebuchet MS" />
+                                    <ComboBoxItem Content="Corbel" />
+                                    <ComboBoxItem Content="Consolas" />
+                                    <ComboBoxItem Content="Cascadia Code" />
+                                    <ComboBoxItem Content="Inter" />
+                                    <ComboBoxItem Content="Roboto" />
+                                </ComboBox>
+                            </StackPanel>
+
+                            <StackPanel Grid.Row="1" Grid.Column="2" Spacing="2">
+                                <TextBlock Text="Layout Mode" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}" FontSize="11"/>
+                                <ComboBox SelectedValue="{Binding Config.DisplayStyle, Mode=TwoWay}" 
+                                          SelectedValuePath="Content" FontSize="13" HorizontalAlignment="Stretch" Height="32">
+                                    <ComboBoxItem Content="Icon" />
+                                    <ComboBoxItem Content="Text" />
+                                    <ComboBoxItem Content="Compact" />
+                                </ComboBox>
+                            </StackPanel>
+                        </Grid>
+
+                        <Border Background="#1AFFFFFF" Height="1" Margin="0,2"/>
+
+                        <!-- Section: Fine-Tuning -->
+                        <Grid ColumnSpacing="16" RowSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="1.5*" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" Spacing="2">
+                                <TextBlock Text="Global Scaling" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}" FontSize="11"/>
+                                <Slider Minimum="0.5" Maximum="2.0" StepFrequency="0.1" Value="{Binding Config.ScaleFactor, Mode=TwoWay}" Margin="0,-4,0,-12"/>
+                            </StackPanel>
+
+                            <ToggleSwitch Grid.Column="1" Header="Bold Text" IsOn="{Binding Config.IsTextBold, Mode=TwoWay}" FontSize="11" VerticalAlignment="Bottom" OnContent="" OffContent=""/>
+                            <ToggleSwitch Grid.Column="2" Header="Bold Icons" IsOn="{Binding Config.IsIconBold, Mode=TwoWay}" FontSize="11" VerticalAlignment="Bottom" OnContent="" OffContent=""/>
+                            <ToggleSwitch Grid.Column="3" Header="Background" IsOn="{Binding Config.ShowBackground, Mode=TwoWay}" FontSize="11" VerticalAlignment="Bottom" OnContent="" OffContent=""/>
+                        </Grid>
+                    </StackPanel>
+
+                    <!-- About Section -->
+                    <StackPanel x:Name="AboutSection" Spacing="16" Visibility="Collapsed">
+                        <TextBlock Text="About" Style="{ThemeResource TitleTextBlockStyle}" Foreground="#00CCFF" FontSize="20"/>
+                        
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="Kil0bit System Monitor" FontWeight="Bold" FontSize="18"/>
+                            <TextBlock Text="{Binding AppVersion}" VerticalAlignment="Bottom" Opacity="0.7" FontSize="13"/>
+                            <TextBlock Text="A lightweight, high-performance system monitoring overlay designed for power users. Built with WinUI 3 and GDI+ rendering." 
+                                       TextWrapping="Wrap" MaxWidth="600" FontSize="14" Margin="0,4,0,0"/>
+                        </StackPanel>
+
+                        <Border Background="#1AFFFFFF" Height="1" Margin="0,4"/>
+
+                        <TextBlock Text="Connect with the Developer" FontWeight="SemiBold" FontSize="15" Foreground="#00CCFF"/>
+                        
+                        <Grid ColumnSpacing="20" RowSpacing="12">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <!-- YouTube -->
+                            <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" Spacing="8">
+                                <FontIcon Glyph="&#xE714;" FontSize="16" Foreground="#FF0000"/>
+                                <HyperlinkButton Content="YouTube (@kilObit)" NavigateUri="https://www.youtube.com/@kilObit" FontSize="13" Padding="0"/>
+                            </StackPanel>
+
+                            <!-- GitHub -->
+                            <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                                <FontIcon Glyph="&#xE902;" FontSize="16" Foreground="#FFFFFF"/>
+                                <HyperlinkButton Content="GitHub (kil0bit-kb)" NavigateUri="https://github.com/kil0bit-kb" FontSize="13" Padding="0"/>
+                            </StackPanel>
+
+                            <!-- Blog -->
+                            <StackPanel Grid.Row="1" Grid.Column="0" Orientation="Horizontal" Spacing="8">
+                                <FontIcon Glyph="&#xE71B;" FontSize="16" Foreground="#00CCFF"/>
+                                <HyperlinkButton Content="Blog (kil0bit.blogspot.com)" NavigateUri="https://kil0bit.blogspot.com/" FontSize="13" Padding="0"/>
+                            </StackPanel>
+
+                            <!-- X (Twitter) -->
+                            <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                                <FontIcon Glyph="&#xE7E8;" FontSize="16" Foreground="#1DA1F2"/>
+                                <HyperlinkButton Content="X (@kil0bit)" NavigateUri="https://x.com/kil0bit" FontSize="13" Padding="0"/>
+                            </StackPanel>
+
+                            <!-- Patreon -->
+                            <StackPanel Grid.Row="2" Grid.Column="0" Orientation="Horizontal" Spacing="8">
+                                <FontIcon Glyph="&#xEB52;" FontSize="16" Foreground="#F96854"/>
+                                <HyperlinkButton Content="Support Me (Patreon)" NavigateUri="https://www.patreon.com/cw/KB_kilObit" FontSize="13" Padding="0"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <TextBlock Text="Built with ❤️ by KB - kil0bit" Opacity="0.5" FontSize="11" Margin="0,10,0,0"/>
+                    </StackPanel>
+                </StackPanel>
+            </ScrollViewer>
+        </NavigationView>
+
+        <!-- Footer -->
+        <Grid Grid.Row="2" Padding="12,12" Background="{ThemeResource SystemControlBackgroundChromeMediumBrush}">
+            <Button Content="Quit Application" Click="QuitButton_Click" Background="#EE4444" Foreground="White" HorizontalAlignment="Left" Padding="12,6" FontSize="12"/>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="12">
+                <Button Content="Save &amp; Close Settings" Click="SaveButton_Click" Background="#66CCEE" Foreground="Black" Padding="12,6" FontSize="12"/>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>
