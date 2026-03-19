@@ -35,7 +35,7 @@ jobs:
     - name: Restore dependencies
       run: dotnet restore Kil0bitSystemMonitor.csproj
 
-    - name: Publish Portable EXE
+    - name: Publish Portable EXE (Self-Contained)
       run: |
         dotnet publish Kil0bitSystemMonitor.csproj `
           -c Release `
@@ -43,6 +43,18 @@ jobs:
           --self-contained true `
           -p:PublishSingleFile=true `
           -o release-output
+
+    - name: Publish Lightweight EXE (Dependent)
+      run: |
+        dotnet publish Kil0bitSystemMonitor.csproj `
+          -c Release `
+          -r win-x64 `
+          --self-contained false `
+          -p:PublishSingleFile=true `
+          -p:WindowsAppSDKSelfContained=false `
+          -o release-light
+        # Rename for clarity in release assets
+        Rename-Item -Path "release-light/Kil0bitSystemMonitor.exe" -NewName "Kil0bitSystemMonitor-Light.exe"
 
     - name: Install WiX Toolset
       run: dotnet tool install --global wix --version 4.0.1
@@ -67,6 +79,7 @@ jobs:
           (See README.md for full highlights and installation guide.)
         files: |
           release-output/Kil0bitSystemMonitor.exe
+          release-light/Kil0bitSystemMonitor-Light.exe
           Kil0bitSystemMonitor-Setup.msi
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
