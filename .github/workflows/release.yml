@@ -70,11 +70,17 @@ jobs:
           - **`Kil0bitSystemMonitor.exe`**: Portable Single-File Binary.
           - **`Kil0bitSystemMonitor-Setup.msi`**: Professional Installer.
           
-          ### 🚀 Changes
-          - Refined interactive Home dashboard.
-          - Smart startup background/foreground detection.
-          - Multi-monitor High-DPI precision.
-          - Ultra-low CPU usage (<0.5%).
+          ### 🌟 The Rebirth (v2.0.0)
+          
+          Welcome to the new era of Kil0bit System Monitor. This version represents a complete architectural reconstruction, moving from legacy Rust code to a modern, high-precision **C#/.NET 10** and **WinUI 3** foundation.
+          
+          ### ✨ Key Highlights
+          - **🚀 Native WinUI 3 Rebirth** — Fully redesigned using the Windows App SDK for a stunning, native Windows 11 Fluent look.
+          - **⚙️ High-Precision Telemetry** — Built on low-level Win32 APIs and GDI+ for near-zero CPU usage (<0.5%).
+          - **🧪 Zero-Dependency Packaging** — Self-contained deployment. No .NET runtime or SDK downloads required!
+          - **📦 Professional Installer** — New MSI setup with custom installation path support and Start/Desktop integration.
+          - **🏠 Interactive Dashboard** — A new Home control center with dynamic telemetry and quick-link navigation.
+          - **📏 High-DPI & Multi-Monitor** — Native support for 4K scaling and precise overlay positioning.
         files: |
           release-output/Kil0bitSystemMonitor.exe
           Kil0bitSystemMonitor-Setup.msi
