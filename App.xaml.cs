@@ -31,7 +31,7 @@ namespace Kil0bitSystemMonitor
         private OverlayWindow? m_overlay;
         private Kil0bitSystemMonitor.Services.TelemetryService? m_telemetry;
         private static System.Threading.Mutex? s_mutex;
-        private static SettingsWindow? _settingsWindow;
+        public static SettingsWindow? SettingsWindow { get; private set; }
 
         [System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true)]
         static extern IntPtr FindWindow(string lpClassName, string? lpWindowName);
@@ -92,15 +92,15 @@ namespace Kil0bitSystemMonitor
 
         public static void OpenSettings(Kil0bitSystemMonitor.ViewModels.MainViewModel viewModel, Kil0bitSystemMonitor.Services.ConfigService config)
         {
-            if (_settingsWindow != null)
+            if (SettingsWindow != null)
             {
-                _settingsWindow.Activate();
+                SettingsWindow.Activate();
                 return;
             }
 
-            _settingsWindow = new SettingsWindow(viewModel, config);
-            _settingsWindow.Closed += (s, e) => { _settingsWindow = null; };
-            _settingsWindow.Activate();
+            SettingsWindow = new SettingsWindow(viewModel, config);
+            SettingsWindow.Closed += (s, e) => { SettingsWindow = null; };
+            SettingsWindow.Activate();
         }
 
         private void App_Exit(object sender, object e)

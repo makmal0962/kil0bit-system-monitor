@@ -25,8 +25,8 @@ namespace Kil0bitSystemMonitor
 
         private bool _isHovered = false;
         private bool _trackingMouse = false;
-        private readonly Action<SystemMetrics> _onMetricsUpdated;
-        private readonly System.ComponentModel.PropertyChangedEventHandler _onConfigPropertyChanged;
+        private readonly Action<SystemMetrics>? _onMetricsUpdated;
+        private readonly System.ComponentModel.PropertyChangedEventHandler? _onConfigPropertyChanged;
         private uint _currentDpi = 96;
         private float _dpiScale = 1.0f;
         

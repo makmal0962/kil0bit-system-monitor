@@ -359,9 +359,8 @@ namespace Kil0bitSystemMonitor
                 DiskDriveCombo?.Items.Clear();
                 ThemeCombo?.Items.Clear();
 
-                // Clear DataContext and Content
+                // Clear Content to break references
                 this.Content = null;
-                this.DataContext = null;
                 _viewModel = null!;
                 _config = null!;
 
