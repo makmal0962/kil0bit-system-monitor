@@ -36,7 +36,8 @@ namespace Kil0bitSystemMonitor
                 string iconPng = Path.Combine(AppContext.BaseDirectory, "icon.png");
                 string iconIco = Path.Combine(AppContext.BaseDirectory, "icon.ico");
                 
-                Win32Helper.SetAppIcon(WinRT.Interop.WindowNative.GetWindowHandle(this), iconPng);
+                IntPtr hWnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+                Win32Helper.SetAppIcon(hWnd, iconPng);
                 if (File.Exists(iconIco)) try { this.AppWindow.SetIcon(iconIco); } catch { }
 
                 PopulateGpuList();
@@ -140,7 +141,9 @@ namespace Kil0bitSystemMonitor
 
                     // Re-force icon for taskbar robustness
                     string iconPng = Path.Combine(AppContext.BaseDirectory, "icon.png");
+                    string iconIco = Path.Combine(AppContext.BaseDirectory, "icon.ico");
                     Win32Helper.SetAppIcon(hWnd, iconPng);
+                    if (File.Exists(iconIco)) try { appWindow.SetIcon(iconIco); } catch { }
 
                     // Force Immersive Dark Mode for the title bar system buttons
                     int darkMode = 1;

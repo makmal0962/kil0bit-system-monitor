@@ -118,12 +118,32 @@ namespace Kil0bitSystemMonitor.Helpers
         /// </summary>
         public static void SetAppIcon(IntPtr hWnd, string imagePath)
         {
-            if (string.IsNullOrEmpty(imagePath) || !System.IO.File.Exists(imagePath)) return;
+            if (string.IsNullOrEmpty(imagePath)) return;
+            
+            // Auto-fallback to .ico if a .png was passed but .ico exists
+            if (imagePath.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
+            {
+                string icoPath = System.IO.Path.ChangeExtension(imagePath, ".ico");
+                if (System.IO.File.Exists(icoPath)) imagePath = icoPath;
+            }
+
+            if (!System.IO.File.Exists(imagePath)) return;
 
             try
             {
-                // If it's a PNG, we must convert at runtime to get a valid HICON
-                if (imagePath.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
+                if (imagePath.EndsWith(".ico", StringComparison.OrdinalIgnoreCase))
+                {
+                    // Taskbar/Alt-Tab often wants 48x48 or 32x32
+                    IntPtr hIcon48 = LoadImage(IntPtr.Zero, imagePath, IMAGE_ICON, 48, 48, LR_LOADFROMFILE);
+                    IntPtr hIcon32 = LoadImage(IntPtr.Zero, imagePath, IMAGE_ICON, 32, 32, LR_LOADFROMFILE);
+                    IntPtr hIcon16 = LoadImage(IntPtr.Zero, imagePath, IMAGE_ICON, 16, 16, LR_LOADFROMFILE);
+
+                    if (hIcon48 != IntPtr.Zero) SendMessage(hWnd, WM_SETICON, (IntPtr)ICON_BIG, hIcon48);
+                    else if (hIcon32 != IntPtr.Zero) SendMessage(hWnd, WM_SETICON, (IntPtr)ICON_BIG, hIcon32);
+
+                    if (hIcon16 != IntPtr.Zero) SendMessage(hWnd, WM_SETICON, (IntPtr)ICON_SMALL, hIcon16);
+                }
+                else if (imagePath.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
                 {
                     using (var bitmap = new System.Drawing.Bitmap(imagePath))
                     {
@@ -132,17 +152,8 @@ namespace Kil0bitSystemMonitor.Helpers
                         {
                             SendMessage(hWnd, WM_SETICON, (IntPtr)ICON_BIG, hIcon);
                             SendMessage(hWnd, WM_SETICON, (IntPtr)ICON_SMALL, hIcon);
-                            // Do NOT DestroyIcon(hIcon) here; the window needs it for the taskbar icon.
-                            // It will leak 1-2 handles per application window, but this is necessary for WinUI 3 compatibility.
                         }
                     }
-                }
-                else if (imagePath.EndsWith(".ico", StringComparison.OrdinalIgnoreCase))
-                {
-                    IntPtr hIcon = LoadImage(IntPtr.Zero, imagePath, IMAGE_ICON, 32, 32, LR_LOADFROMFILE);
-                    IntPtr hIconSm = LoadImage(IntPtr.Zero, imagePath, IMAGE_ICON, 16, 16, LR_LOADFROMFILE);
-                    if (hIcon != IntPtr.Zero) SendMessage(hWnd, WM_SETICON, (IntPtr)ICON_BIG, hIcon);
-                    if (hIconSm != IntPtr.Zero) SendMessage(hWnd, WM_SETICON, (IntPtr)ICON_SMALL, hIconSm);
                 }
             }
             catch { }

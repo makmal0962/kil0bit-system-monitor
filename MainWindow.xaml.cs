@@ -42,10 +42,10 @@ namespace Kil0bitSystemMonitor
             _hWnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
             _appWindow = AppWindow.GetFromWindowId(Microsoft.UI.Win32Interop.GetWindowIdFromWindow(_hWnd));
             
-            // Set taskbar icon
+            // Set taskbar icon with multi-size support
             string iconPng = Path.Combine(AppContext.BaseDirectory, "icon.png");
             string iconIco = Path.Combine(AppContext.BaseDirectory, "icon.ico");
-            Win32Helper.SetAppIcon(_hWnd, iconPng);
+            Win32Helper.SetAppIcon(_hWnd, iconPng); // This now auto-prefers .ico if available
             if (File.Exists(iconIco)) try { _appWindow.SetIcon(iconIco); } catch { }
             
             // Z-Order Enforcement Timer (Windows 11 fix)
