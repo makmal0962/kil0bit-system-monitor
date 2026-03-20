@@ -112,6 +112,12 @@ namespace Kil0bitSystemMonitor.Helpers
         public const int ICON_SMALL = 0;
         public const uint IMAGE_ICON = 1;
         public const uint LR_LOADFROMFILE = 0x0010;
+        
+        // Global icon cache to prevent handle leaks when opening/closing windows
+        private static IntPtr _cachedIcon48 = IntPtr.Zero;
+        private static IntPtr _cachedIcon32 = IntPtr.Zero;
+        private static IntPtr _cachedIcon16 = IntPtr.Zero;
+        private static string _cachedIconPath = "";
 
         /// <summary>
         /// Forces a window to use a custom icon by loading a PNG/ICO at runtime.
@@ -133,18 +139,28 @@ namespace Kil0bitSystemMonitor.Helpers
             {
                 if (imagePath.EndsWith(".ico", StringComparison.OrdinalIgnoreCase))
                 {
-                    // Taskbar/Alt-Tab often wants 48x48 or 32x32
-                    IntPtr hIcon48 = LoadImage(IntPtr.Zero, imagePath, IMAGE_ICON, 48, 48, LR_LOADFROMFILE);
-                    IntPtr hIcon32 = LoadImage(IntPtr.Zero, imagePath, IMAGE_ICON, 32, 32, LR_LOADFROMFILE);
-                    IntPtr hIcon16 = LoadImage(IntPtr.Zero, imagePath, IMAGE_ICON, 16, 16, LR_LOADFROMFILE);
+                    // If icon path changed or not loaded, refresh cache
+                    if (_cachedIconPath != imagePath || _cachedIcon48 == IntPtr.Zero)
+                    {
+                        if (_cachedIcon48 != IntPtr.Zero) DestroyIcon(_cachedIcon48);
+                        if (_cachedIcon32 != IntPtr.Zero) DestroyIcon(_cachedIcon32);
+                        if (_cachedIcon16 != IntPtr.Zero) DestroyIcon(_cachedIcon16);
 
-                    if (hIcon48 != IntPtr.Zero) SendMessage(hWnd, WM_SETICON, (IntPtr)ICON_BIG, hIcon48);
-                    else if (hIcon32 != IntPtr.Zero) SendMessage(hWnd, WM_SETICON, (IntPtr)ICON_BIG, hIcon32);
+                        _cachedIcon48 = LoadImage(IntPtr.Zero, imagePath, IMAGE_ICON, 48, 48, LR_LOADFROMFILE);
+                        _cachedIcon32 = LoadImage(IntPtr.Zero, imagePath, IMAGE_ICON, 32, 32, LR_LOADFROMFILE);
+                        _cachedIcon16 = LoadImage(IntPtr.Zero, imagePath, IMAGE_ICON, 16, 16, LR_LOADFROMFILE);
+                        _cachedIconPath = imagePath;
+                    }
 
-                    if (hIcon16 != IntPtr.Zero) SendMessage(hWnd, WM_SETICON, (IntPtr)ICON_SMALL, hIcon16);
+                    if (_cachedIcon48 != IntPtr.Zero) SendMessage(hWnd, WM_SETICON, (IntPtr)ICON_BIG, _cachedIcon48);
+                    else if (_cachedIcon32 != IntPtr.Zero) SendMessage(hWnd, WM_SETICON, (IntPtr)ICON_BIG, _cachedIcon32);
+
+                    if (_cachedIcon16 != IntPtr.Zero) SendMessage(hWnd, WM_SETICON, (IntPtr)ICON_SMALL, _cachedIcon16);
                 }
                 else if (imagePath.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
                 {
+                    // Note: PNG icons are converted at runtime and cannot be easily cached 
+                    // without a persistent Bitmap reference. However, the app now uses ICO by default.
                     using (var bitmap = new System.Drawing.Bitmap(imagePath))
                     {
                         IntPtr hIcon = bitmap.GetHicon();
