@@ -6,6 +6,7 @@ using System.Runtime.InteropServices;
 using Kil0bitSystemMonitor.Helpers;
 using Kil0bitSystemMonitor.Services;
 using Kil0bitSystemMonitor.ViewModels;
+using Kil0bitSystemMonitor.Models;
 
 namespace Kil0bitSystemMonitor
 {
@@ -24,6 +25,8 @@ namespace Kil0bitSystemMonitor
 
         private bool _isHovered = false;
         private bool _trackingMouse = false;
+        private readonly Action<SystemMetrics> _onMetricsUpdated;
+        private readonly System.ComponentModel.PropertyChangedEventHandler _onConfigPropertyChanged;
         private uint _currentDpi = 96;
         private float _dpiScale = 1.0f;
         
@@ -177,7 +180,7 @@ namespace Kil0bitSystemMonitor
                 UpdateCachedColors();
                 UpdateLayer();
 
-                _telemetry.MetricsUpdated += (m) =>
+                _onMetricsUpdated = (m) =>
                 {
                     _dispatcher.TryEnqueue(() => 
                     {
@@ -185,11 +188,12 @@ namespace Kil0bitSystemMonitor
                         UpdateLayer();
                     });
                 };
+                _telemetry.MetricsUpdated += _onMetricsUpdated;
 
                 // Enforce TopMost Z-order against Win11 taskbar
                 _zOrderTimer = new System.Threading.Timer(EnforceZOrder, null, 0, 500);
 
-                _config.Config.PropertyChanged += (s, e) =>
+                _onConfigPropertyChanged = (s, e) =>
                 {
                     _dispatcher.TryEnqueue(() => {
                         if (e.PropertyName == nameof(_config.Config.AccentColorHex) || 
@@ -212,6 +216,7 @@ namespace Kil0bitSystemMonitor
                         }
                     });
                 };
+                _config.Config.PropertyChanged += _onConfigPropertyChanged;
 
                 // Initial visibility
                 if (!_config.Config.ShowOverlay) ShowWindow(_hWnd, 0);
@@ -629,6 +634,10 @@ namespace Kil0bitSystemMonitor
         {
             try
             {
+                _telemetry.MetricsUpdated -= _onMetricsUpdated;
+                _config.Config.PropertyChanged -= _onConfigPropertyChanged;
+                _zOrderTimer?.Dispose();
+
                 ClearCaches();
                 _offscreenGraphics?.Dispose();
                 _offscreenBitmap?.Dispose();
