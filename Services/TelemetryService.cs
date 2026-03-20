@@ -26,6 +26,9 @@ namespace Kil0bitSystemMonitor.Services
         private DateTime _lastNetTime;
         private System.Collections.Generic.List<System.IO.DriveInfo> _cachedDrives = new();
         private DateTime _lastDriveRefresh = DateTime.MinValue;
+        private System.Net.NetworkInformation.NetworkInterface[]? _cachedNetworkInterfaces;
+        private DateTime _lastNetworkRefresh = DateTime.MinValue;
+        private DateTime _lastGpuCounterRefresh = DateTime.MinValue;
 
         public event Action<SystemMetrics>? MetricsUpdated;
 
@@ -50,11 +53,16 @@ namespace Kil0bitSystemMonitor.Services
             try
             {
                 using (var searcher = new ManagementObjectSearcher("SELECT Name FROM Win32_VideoController"))
+                using (var results = searcher.Get())
                 {
-                    foreach (ManagementObject obj in searcher.Get())
+                    foreach (ManagementObject obj in results)
                     {
-                        string name = obj["Name"]?.ToString() ?? "Unknown GPU";
-                        if (!gpus.Contains(name)) gpus.Add(name);
+                        try 
+                        {
+                            string name = obj["Name"]?.ToString() ?? "Unknown GPU";
+                            if (!gpus.Contains(name)) gpus.Add(name);
+                        }
+                        finally { obj.Dispose(); }
                     }
                 }
             }
@@ -192,36 +200,43 @@ namespace Kil0bitSystemMonitor.Services
                     // Map selected name to LUID using memory heuristics (Dedicated vs Shared)
                     try
                     {
-                        var searcher = new ManagementObjectSearcher(@"root\CIMV2", "SELECT Name, DedicatedUsage, SharedUsage FROM Win32_PerfFormattedData_GPUPerformanceCounters_GPUAdapterMemory");
                         string? dedicatedLuidCandidate = null;
                         string? sharedLuidCandidate = null;
                         long maxDedicated = -1;
                         long maxShared = -1;
 
-                        foreach (ManagementObject obj in searcher.Get())
+                        using (var searcher = new ManagementObjectSearcher(@"root\CIMV2", "SELECT Name, DedicatedUsage, SharedUsage FROM Win32_PerfFormattedData_GPUPerformanceCounters_GPUAdapterMemory"))
+                        using (var results = searcher.Get())
                         {
-                            string name = (obj["Name"]?.ToString() ?? "").ToLowerInvariant();
-                            long dedicated = Convert.ToInt64(obj["DedicatedUsage"] ?? 0);
-                            long shared = Convert.ToInt64(obj["SharedUsage"] ?? 0);
-
-                            if (name.Contains("luid_"))
+                            foreach (ManagementObject obj in results)
                             {
-                                var parts = name.Split('_');
-                                int lIdx = Array.IndexOf(parts, "luid");
-                                if (lIdx >= 0 && lIdx + 2 < parts.Length)
+                                try 
                                 {
-                                    string luid = parts[lIdx + 1] + "_" + parts[lIdx + 2];
-                                    
-                                    // Dedicated GPUs (NVIDIA/AMD) have discrete memory
-                                    if (dedicated > 0)
+                                    string name = (obj["Name"]?.ToString() ?? "").ToLowerInvariant();
+                                    long dedicated = Convert.ToInt64(obj["DedicatedUsage"] ?? 0);
+                                    long shared = Convert.ToInt64(obj["SharedUsage"] ?? 0);
+
+                                    if (name.Contains("luid_"))
                                     {
-                                        if (dedicated > maxDedicated) { maxDedicated = dedicated; dedicatedLuidCandidate = luid; }
-                                    }
-                                    else // Integrated GPUs (Intel) usually rely on Shared memory
-                                    {
-                                        if (shared > maxShared) { maxShared = shared; sharedLuidCandidate = luid; }
+                                        var parts = name.Split('_');
+                                        int lIdx = Array.IndexOf(parts, "luid");
+                                        if (lIdx >= 0 && lIdx + 2 < parts.Length)
+                                        {
+                                            string luid = parts[lIdx + 1] + "_" + parts[lIdx + 2];
+                                            
+                                            // Dedicated GPUs (NVIDIA/AMD) have discrete memory
+                                            if (dedicated > 0)
+                                            {
+                                                if (dedicated > maxDedicated) { maxDedicated = dedicated; dedicatedLuidCandidate = luid; }
+                                            }
+                                            else // Integrated GPUs (Intel) usually rely on Shared memory
+                                            {
+                                                if (shared > maxShared) { maxShared = shared; sharedLuidCandidate = luid; }
+                                            }
+                                        }
                                     }
                                 }
+                                finally { obj.Dispose(); }
                             }
                         }
 
@@ -280,6 +295,10 @@ namespace Kil0bitSystemMonitor.Services
         {
             try
             {
+                // Throttle enumeration to once every 30 seconds to save CPU
+                if ((DateTime.Now - _lastGpuCounterRefresh).TotalSeconds < 30 && _gpuCounters.Count > 0) return;
+                _lastGpuCounterRefresh = DateTime.Now;
+
                 var category = new PerformanceCounterCategory("GPU Engine");
                 var instances = category.GetInstanceNames();
                 var targetInstances = instances.Where(name => 
@@ -348,7 +367,18 @@ namespace Kil0bitSystemMonitor.Services
             long up = 0, down = 0;
             string filter = _config?.Config?.NetworkAdapter ?? "Default";
 
-            foreach (var ni in NetworkInterface.GetAllNetworkInterfaces())
+            // Cache network interfaces for 30 seconds to avoid high CPU usage from enumeration
+            if (_cachedNetworkInterfaces == null || (DateTime.Now - _lastNetworkRefresh).TotalSeconds > 30)
+            {
+                try 
+                { 
+                    _cachedNetworkInterfaces = NetworkInterface.GetAllNetworkInterfaces(); 
+                    _lastNetworkRefresh = DateTime.Now;
+                }
+                catch { return (0, 0); }
+            }
+
+            foreach (var ni in _cachedNetworkInterfaces)
             {
                 if (IsSelectableAdapter(ni))
                 {
@@ -670,17 +700,24 @@ namespace Kil0bitSystemMonitor.Services
                 // Method 2: Performance Counters (Available on some modern Windows versions/drivers)
                 try
                 {
-                    var searcher = new ManagementObjectSearcher(@"root\CIMV2", "SELECT * FROM Win32_PerfFormattedData_GPUPerformanceCounters_GPUAdapterMemory");
-                    foreach (ManagementObject obj in searcher.Get())
+                    using (var searcher = new ManagementObjectSearcher(@"root\CIMV2", "SELECT * FROM Win32_PerfFormattedData_GPUPerformanceCounters_GPUAdapterMemory"))
+                    using (var results = searcher.Get())
                     {
-                        // Match by LUID if we have it
-                        if (_selectedGpuLuid != null)
+                        foreach (ManagementObject obj in results)
                         {
-                            string name = obj["Name"]?.ToString() ?? "";
-                            if (!name.Contains(_selectedGpuLuid)) continue;
-                        }
+                            try 
+                            {
+                                // Match by LUID if we have it
+                                if (_selectedGpuLuid != null)
+                                {
+                                    string name = obj["Name"]?.ToString() ?? "";
+                                    if (!name.Contains(_selectedGpuLuid)) continue;
+                                }
 
-                        if (obj["Temperature"] != null) temp = Convert.ToSingle(obj["Temperature"]);
+                                if (obj["Temperature"] != null) temp = Convert.ToSingle(obj["Temperature"]);
+                            }
+                            finally { obj.Dispose(); }
+                        }
                     }
                 }
                 catch { }
@@ -697,10 +734,17 @@ namespace Kil0bitSystemMonitor.Services
                 {
                     try
                     {
-                        var searcher = new ManagementObjectSearcher(@"root\cimv2\NV", "SELECT * FROM NV_GPU");
-                        foreach (ManagementObject obj in searcher.Get())
+                        using (var searcher = new ManagementObjectSearcher(@"root\cimv2\NV", "SELECT * FROM NV_GPU"))
+                        using (var results = searcher.Get())
                         {
-                            if (obj["GpuCoreTemp"] != null) temp = Convert.ToSingle(obj["GpuCoreTemp"]);
+                            foreach (ManagementObject obj in results)
+                            {
+                                try 
+                                {
+                                    if (obj["GpuCoreTemp"] != null) temp = Convert.ToSingle(obj["GpuCoreTemp"]);
+                                }
+                                finally { obj.Dispose(); }
+                            }
                         }
                     }
                     catch { }

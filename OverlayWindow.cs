@@ -14,6 +14,7 @@ namespace Kil0bitSystemMonitor
         private delegate IntPtr WndProcDelegate(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
         private readonly WndProcDelegate _wndProc = null!;
         private IntPtr _hWnd;
+        private IntPtr _hIcon;
 
         private readonly MainViewModel _viewModel = null!;
         private readonly ConfigService _config = null!;
@@ -110,16 +111,21 @@ namespace Kil0bitSystemMonitor
                     {
                         using (var bmp = new System.Drawing.Bitmap(iconPath))
                         {
-                            hIcon = bmp.GetHicon();
+                            _hIcon = bmp.GetHicon();
                         }
                     }
                 }
                 catch { }
 
-                wc.hIcon = hIcon;
-                wc.hIconSm = hIcon;
+                wc.hIcon = _hIcon;
+                wc.hIconSm = _hIcon;
 
                 ushort regResult = RegisterClassEx(ref wc);
+
+                // We must NOT destroy hIcon here if we want the class to use it, 
+                // but for WS_SETICON later we might need to be careful.
+                // However, the class registration usually takes ownership or copies.
+                // For safety in this specific app's lifecycle, we'll keep it until the window is destroyed.
 
                 int x = (int)_config.Config.X;
                 int y = (int)_config.Config.Y;
@@ -139,10 +145,10 @@ namespace Kil0bitSystemMonitor
                 if (_hWnd != IntPtr.Zero)
                 {
                     // Reinforce icons for the specific window handle
-                    if (hIcon != IntPtr.Zero)
+                    if (_hIcon != IntPtr.Zero)
                     {
-                        SendMessage(_hWnd, WM_SETICON, (IntPtr)ICON_BIG, hIcon);
-                        SendMessage(_hWnd, WM_SETICON, (IntPtr)ICON_SMALL, hIcon);
+                        SendMessage(_hWnd, WM_SETICON, (IntPtr)ICON_BIG, _hIcon);
+                        SendMessage(_hWnd, WM_SETICON, (IntPtr)ICON_SMALL, _hIcon);
                     }
                 }
                 else
@@ -221,12 +227,13 @@ namespace Kil0bitSystemMonitor
         {
             _dispatcher.TryEnqueue(() => 
             {
+                // UpdateVisibility already does the checks and applies ShowWindow
                 UpdateVisibility();
+                
+                // Only enforce TopMost if we should be visible
                 bool isFullscreen = _config.Config.HideOnFullscreen && IsForegroundWindowFullScreen();
                 bool isTaskbarVisible = !_config.Config.StickToTaskbar || IsTaskbarVisible();
-                bool shouldBeVisible = _config.Config.ShowOverlay && !isFullscreen && isTaskbarVisible;
-                
-                if (shouldBeVisible)
+                if (_config.Config.ShowOverlay && !isFullscreen && isTaskbarVisible)
                 {
                     SetWindowPos(_hWnd, (IntPtr)(-1), 0, 0, 0, 0, 0x0002 | 0x0001 | 0x0010 | 0x0040); // HWND_TOPMOST, SWP_NOMOVE|SWP_NOSIZE|SWP_NOACTIVATE|SWP_SHOWWINDOW
                 }
@@ -585,9 +592,19 @@ namespace Kil0bitSystemMonitor
             _cachedHoverBrush = new SolidBrush(Color.FromArgb(25, 255, 255, 255));
         }
 
+        private DateTime _lastCacheClear = DateTime.Now;
+
         private float GetCachedMeasure(string text, Font font)
         {
             if (_offscreenGraphics == null) return 0;
+
+            // Prevent indefinite growth of measurement cache by clearing it periodically
+            if ((DateTime.Now - _lastCacheClear).TotalMinutes > 5)
+            {
+                _measureCache.Clear();
+                _lastCacheClear = DateTime.Now;
+            }
+
             string key = $"{text}_{font.Name}_{font.Size}_{font.Style}";
             if (!_measureCache.TryGetValue(key, out var width))
             {
@@ -635,6 +652,12 @@ namespace Kil0bitSystemMonitor
                 {
                     DestroyWindow(_hWnd);
                     _hWnd = IntPtr.Zero;
+                }
+
+                if (_hIcon != IntPtr.Zero)
+                {
+                    DestroyIcon(_hIcon);
+                    _hIcon = IntPtr.Zero;
                 }
             }
             catch { }
@@ -686,6 +709,9 @@ namespace Kil0bitSystemMonitor
                 ReleaseDC(_hWnd, windowDC);
             }
         }
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern bool DestroyIcon(IntPtr hIcon);
 
         private IntPtr WndProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam)
         {

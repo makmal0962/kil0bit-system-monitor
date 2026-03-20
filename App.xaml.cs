@@ -30,6 +30,7 @@ namespace Kil0bitSystemMonitor
         private Window? m_dummyWindow;
         private OverlayWindow? m_overlay;
         private Kil0bitSystemMonitor.Services.TelemetryService? m_telemetry;
+        private static System.Threading.Mutex? s_mutex;
 
         [System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true)]
         static extern IntPtr FindWindow(string lpClassName, string? lpWindowName);
@@ -41,10 +42,19 @@ namespace Kil0bitSystemMonitor
 
         protected override void OnLaunched(LaunchActivatedEventArgs e)
         {
-            IntPtr existingWnd = FindWindow("Kil0bitOverlayWndClass_Main", null);
-            if (existingWnd != IntPtr.Zero)
+            // Robust single-instance check using Mutex
+            bool createdNew;
+            s_mutex = new System.Threading.Mutex(true, "Local\\Kil0bitSystemMonitor_SingleInstance_Mutex", out createdNew);
+            
+            if (!createdNew)
             {
-                SendMessage(existingWnd, WM_SHOW_SETTINGS, IntPtr.Zero, IntPtr.Zero);
+                // Try to find the existing window to show settings before exiting
+                IntPtr existingWnd = FindWindow("Kil0bitOverlayWndClass_Main", null);
+                if (existingWnd != IntPtr.Zero)
+                {
+                    SendMessage(existingWnd, WM_SHOW_SETTINGS, IntPtr.Zero, IntPtr.Zero);
+                }
+                s_mutex.Dispose();
                 System.Environment.Exit(0);
                 return;
             }
@@ -85,6 +95,8 @@ namespace Kil0bitSystemMonitor
             {
                 m_overlay?.Dispose();
                 m_telemetry?.Dispose();
+                s_mutex?.ReleaseMutex();
+                s_mutex?.Dispose();
             }
             catch { }
         }
