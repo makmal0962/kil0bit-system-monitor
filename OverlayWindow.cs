@@ -171,12 +171,10 @@ namespace Kil0bitSystemMonitor
                 _currentDpi = GetDpiForWindow(_hWnd);
                 if (_currentDpi == 0) _currentDpi = 96;
                 _dpiScale = _currentDpi / 96.0f;
-                IntPtr taskbarHwnd = Win32Helper.FindWindow("Shell_TrayWnd", "");
-                if (taskbarHwnd != IntPtr.Zero)
-                {
-                    Win32Helper.SetWindowLongPtr(_hWnd, Win32Helper.GWL_HWNDPARENT, taskbarHwnd);
-                }
-
+                // We explicitly do NOT parent the overlay to the taskbar (GWL_HWNDPARENT) anymore.
+                // In Windows 11, parenting a layered window to Shell_TrayWnd causes the Desktop Window Manager (DWM)
+                // and XAML islands to occasionally clip or hide the overlay when the taskbar is clicked.
+                
                 ShowWindow(_hWnd, 5); // SW_SHOW
                 
                 // Set initial Y to taskbar center if it's reasonably close
@@ -315,7 +313,9 @@ namespace Kil0bitSystemMonitor
                 className == "Progman" || 
                 className == "Windows.UI.Core.CoreWindow" || 
                 className == "SearchHost.Window" ||
-                className == "XamlExplorerHostIslandWindow")
+                className == "XamlExplorerHostIslandWindow" ||
+                className == "StartMenuExperienceHost" ||
+                className == "ControlCenterWindow")
             {
                 return false;
             }
