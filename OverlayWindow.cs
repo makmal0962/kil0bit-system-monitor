@@ -150,6 +150,14 @@ namespace Kil0bitSystemMonitor
                     x = 100; y = 100;
                 }
 
+                _hWnd = CreateWindowEx(
+                    0x00080000 | 0x00000008 | 0x00000080, // WS_EX_LAYERED | WS_EX_TOPMOST | WS_EX_TOOLWINDOW
+                    "Kil0bitOverlayWndClass_Main",
+                    "Kil0bit System Monitor Overlay",
+                    0x80000000, // WS_POPUP
+                    x, y, 300, 35,
+                    IntPtr.Zero, IntPtr.Zero, wc.hInstance, IntPtr.Zero);
+
                 if (_hWnd == IntPtr.Zero)
                 {
                     throw new Exception($"Failed to create overlay window. Error: {Marshal.GetLastWin32Error()}");
@@ -219,8 +227,10 @@ namespace Kil0bitSystemMonitor
                 // Initial visibility
                 if (!_config.Config.ShowOverlay) ShowWindow(_hWnd, 0);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                System.Diagnostics.Debug.WriteLine($"Error in OverlayWindow constructor: {ex.Message}");
+                throw;
             }
         }
 
@@ -439,12 +449,12 @@ namespace Kil0bitSystemMonitor
                 var col = columns[i];
                 if (!string.IsNullOrEmpty(col.Top) && !string.IsNullOrEmpty(col.Bottom))
                 {
-                    RenderMetric(_offscreenGraphics, col.Top, currentX, yTop, isIcon, iconFont, textFont, iconBrush, valueBrush);
-                    RenderMetric(_offscreenGraphics, col.Bottom, currentX, yBot, isIcon, iconFont, textFont, iconBrush, valueBrush);
+                    RenderMetric(_offscreenGraphics, col.Top, currentX, yTop, isIcon, iconFont, textFont, iconBrush, valueBrush, effectiveScale);
+                    RenderMetric(_offscreenGraphics, col.Bottom, currentX, yBot, isIcon, iconFont, textFont, iconBrush, valueBrush, effectiveScale);
                 }
                 else if (!string.IsNullOrEmpty(col.Top))
                 {
-                    RenderMetric(_offscreenGraphics, col.Top, currentX, 8.5f * _dpiScale, isIcon, iconFont, textFont, iconBrush, valueBrush);
+                    RenderMetric(_offscreenGraphics, col.Top, currentX, 8.5f * effectiveScale, isIcon, iconFont, textFont, iconBrush, valueBrush, effectiveScale);
                 }
                 currentX += colWidths[i];
             }
@@ -542,7 +552,7 @@ namespace Kil0bitSystemMonitor
             return path;
         }
 
-        private void RenderMetric(Graphics g, string raw, float x, float y, bool isIcon, Font iconFont, Font textFont, Brush iconBrush, Brush valueBrush)
+        private void RenderMetric(Graphics g, string raw, float x, float y, bool isIcon, Font iconFont, Font textFont, Brush iconBrush, Brush valueBrush, float effectiveScale)
         {
             if (isIcon && raw.Length > 1)
             {
@@ -552,8 +562,8 @@ namespace Kil0bitSystemMonitor
                 string val = raw.Substring(1).Trim();
 
                 float iconWidth = GetCachedMeasure(icon, iconFont);
-                g.DrawString(icon, iconFont, iconBrush, new PointF(x, y + (2.5f * _dpiScale)));
-                g.DrawString(val, textFont, valueBrush, new PointF(x + iconWidth + (2 * _dpiScale), y));
+                g.DrawString(icon, iconFont, iconBrush, new PointF(x, y + (2.5f * effectiveScale)));
+                g.DrawString(val, textFont, valueBrush, new PointF(x + iconWidth + (2 * effectiveScale), y));
             }
             else
             {
@@ -565,7 +575,7 @@ namespace Kil0bitSystemMonitor
                     
                     float labelWidth = GetCachedMeasure(label.TrimEnd(), textFont);
                     g.DrawString(label, textFont, iconBrush, new PointF(x, y));
-                    g.DrawString(val, textFont, valueBrush, new PointF(x + labelWidth + (2 * _dpiScale), y));
+                    g.DrawString(val, textFont, valueBrush, new PointF(x + labelWidth + (2 * effectiveScale), y));
                 }
                 else
                 {
