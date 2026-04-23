@@ -21,11 +21,13 @@ namespace Kil0bitSystemMonitor
         private readonly ConfigService _config = null!;
         private readonly TelemetryService _telemetry = null!;
         private readonly Microsoft.UI.Dispatching.DispatcherQueue _dispatcher = null!;
+        private readonly System.Threading.Timer _zOrderTimer = null!;
 
         private bool _isHovered = false;
         private bool _trackingMouse = false;
         private bool _shellFullscreen = false; // Set by ABN_FULLSCREENAPP notification from the shell
         private bool _appbarRegistered = false;
+        private DateTime? _fullscreenSince = null; // debounce: only hide after consistently fullscreen for 800ms
         private readonly Action<SystemMetrics>? _onMetricsUpdated;
         private readonly System.ComponentModel.PropertyChangedEventHandler? _onConfigPropertyChanged;
         private uint _currentDpi = 96;
@@ -148,41 +150,26 @@ namespace Kil0bitSystemMonitor
                     x = 100; y = 100;
                 }
 
-                _hWnd = CreateWindowEx(
-                    0x00080000 | 0x00000008 | 0x00000080, // WS_EX_LAYERED | WS_EX_TOPMOST | WS_EX_TOOLWINDOW
-                    "Kil0bitOverlayWndClass_Main",
-                    "Kil0bit System Monitor Overlay",
-                    0x80000000, // WS_POPUP
-                    (int)_config.Config.X, (int)_config.Config.Y, 300, 35,
-                    IntPtr.Zero, IntPtr.Zero, wc.hInstance, IntPtr.Zero);
-
-                if (_hWnd != IntPtr.Zero)
+                if (_hWnd == IntPtr.Zero)
                 {
-                    // Reinforce icons for the specific window handle
-                    if (_hIcon != IntPtr.Zero)
-                    {
-                        SendMessage(_hWnd, WM_SETICON, (IntPtr)ICON_BIG, _hIcon);
-                        SendMessage(_hWnd, WM_SETICON, (IntPtr)ICON_SMALL, _hIcon);
-                    }
-                }
-                else
-                {
-                    int err = Marshal.GetLastWin32Error();
-                    // Window creation logic
-
+                    throw new Exception($"Failed to create overlay window. Error: {Marshal.GetLastWin32Error()}");
                 }
 
-                // Context set
-
+                // Reinforce icons for the specific window handle
+                if (_hIcon != IntPtr.Zero)
+                {
+                    SendMessage(_hWnd, WM_SETICON, (IntPtr)ICON_BIG, _hIcon);
+                    SendMessage(_hWnd, WM_SETICON, (IntPtr)ICON_SMALL, _hIcon);
+                }
                 
                 // Initialize DPI
                 _currentDpi = GetDpiForWindow(_hWnd);
                 if (_currentDpi == 0) _currentDpi = 96;
                 _dpiScale = _currentDpi / 96.0f;
-                // Register as a Windows appbar — this gives the overlay the same z-order and
-                // visibility semantics as the taskbar itself. The shell will send us
-                // ABN_FULLSCREENAPP notifications so we hide/show with the taskbar.
-                RegisterAppBar();
+
+                // Attach to taskbar using a combination of Appbar and Ownership.
+                // This makes the overlay stick to the taskbar's Z-order layer.
+                AttachToTaskbar();
                 
                 ShowWindow(_hWnd, 5); // SW_SHOW
                 
@@ -200,6 +187,9 @@ namespace Kil0bitSystemMonitor
                     });
                 };
                 _telemetry.MetricsUpdated += _onMetricsUpdated;
+
+                // Enforce TopMost Z-order and visibility state
+                _zOrderTimer = new System.Threading.Timer(EnforceZOrder, null, 0, 500);
 
                 _onConfigPropertyChanged = (s, e) =>
                 {
@@ -231,18 +221,47 @@ namespace Kil0bitSystemMonitor
             }
             catch (Exception)
             {
-                // Silently fail for production
             }
         }
 
+        private void EnforceZOrder(object? state)
+        {
+            _dispatcher.TryEnqueue(() => 
+            {
+                UpdateVisibility();
+                if (ShouldShowOverlay())
+                {
+                    // Re-assert TopMost. Because we are owned by the taskbar and an appbar,
+                    // this ensures we stay in the same priority band as the shell.
+                    SetWindowPos(_hWnd, (IntPtr)(-1), 0, 0, 0, 0, 0x0002 | 0x0001 | 0x0010 | 0x0040); // HWND_TOPMOST | SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW
+                }
+            });
+        }
+
         /// <summary>
-        /// Registers this window as a Windows appbar via SHAppBarMessage(ABM_NEW).
-        /// This gives the overlay the same z-order and visibility semantics as the
-        /// taskbar — the shell will send ABN_FULLSCREENAPP notifications so we
-        /// hide/show in lockstep with the taskbar.
-        /// We do NOT call ABM_SETPOS (no screen space reservation) because the
-        /// overlay floats on top of the taskbar rather than beside it.
+        /// Attaches the overlay to the taskbar by setting it as the Owner window
+        /// and registering as a Shell Appbar. This is more robust than SetParent(WS_CHILD)
+        /// on Windows 11 as it avoids clipping and transparency issues.
         /// </summary>
+        private void AttachToTaskbar()
+        {
+            if (_hWnd == IntPtr.Zero) return;
+
+            IntPtr taskbarHwnd = Win32Helper.FindWindow("Shell_TrayWnd", null!);
+            if (taskbarHwnd != IntPtr.Zero)
+            {
+                // Set the taskbar as the OWNER of this window. 
+                // Owned windows stay above their owner in Z-order.
+                Win32Helper.SetWindowLongPtr(_hWnd, Win32Helper.GWL_HWNDPARENT, taskbarHwnd);
+
+                // Register as an Appbar for shell-native visibility notifications
+                RegisterAppBar();
+
+                // Ensure coordinates are updated
+                AlignToTaskbarCenter();
+            }
+        }
+
         private void RegisterAppBar()
         {
             if (_appbarRegistered || _hWnd == IntPtr.Zero) return;
@@ -256,9 +275,6 @@ namespace Kil0bitSystemMonitor
             _appbarRegistered = (result != IntPtr.Zero);
         }
 
-        /// <summary>
-        /// Unregisters this window from the appbar system.
-        /// </summary>
         private void UnregisterAppBar()
         {
             if (!_appbarRegistered || _hWnd == IntPtr.Zero) return;
@@ -277,23 +293,17 @@ namespace Kil0bitSystemMonitor
         }
 
         /// <summary>
-        /// Single source of truth: returns true when the overlay should be visible.
-        /// Uses the shell's ABN_FULLSCREENAPP notification (set via _shellFullscreen)
-        /// to mirror the taskbar's behavior exactly. Also checks:
-        ///   • User toggle (ShowOverlay)
-        ///   • Auto-hide taskbar retracted (≤4 px strip) → overlay hidden
-        ///   • Shell fullscreen notification → overlay hidden
+        /// Single source of truth for visibility. Combines shell notifications
+        /// with manual fullscreen detection for maximum reliability.
         /// </summary>
         private bool ShouldShowOverlay()
         {
             if (!_config.Config.ShowOverlay) return false;
 
             IntPtr taskbarHwnd = Win32Helper.FindWindow("Shell_TrayWnd", null!);
-            if (taskbarHwnd == IntPtr.Zero) return true; // Can't find taskbar — stay visible
+            if (taskbarHwnd == IntPtr.Zero) return true; 
 
             // ── Auto-hide check ─────────────────────────────────────────────────────────
-            // When auto-hide is active and the taskbar has retracted it collapses to a
-            // 1–2 px edge strip. Height (or width) ≤ 4 px = retracted. Hide the overlay to match.
             if (Win32Helper.GetWindowRect(taskbarHwnd, out Win32Helper.RECT tbRect))
             {
                 int h = tbRect.Bottom - tbRect.Top;
@@ -302,16 +312,68 @@ namespace Kil0bitSystemMonitor
                     return false;
             }
 
-            // ── Shell fullscreen notification ───────────────────────────────────────────
-            // ABN_FULLSCREENAPP sets _shellFullscreen. This is the same signal the
-            // taskbar itself uses to decide whether to hide.
-            if (_config.Config.HideOnFullscreen && _shellFullscreen)
-                return false;
+            // ── Fullscreen detection ────────────────────────────────────────────────────
+            if (_config.Config.HideOnFullscreen)
+            {
+                IntPtr taskbarMonitor = MonitorFromWindow(taskbarHwnd, 2);
+                bool isFullscreen = _shellFullscreen || IsFullscreenOnTaskbarMonitor(taskbarMonitor);
+                
+                if (isFullscreen)
+                {
+                    if (_fullscreenSince == null) _fullscreenSince = DateTime.UtcNow;
+                    if ((DateTime.UtcNow - _fullscreenSince.Value).TotalMilliseconds >= 800)
+                        return false;
+                }
+                else
+                {
+                    _fullscreenSince = null;
+                }
+            }
 
             return true;
         }
 
-        // IsFullscreenOnTaskbarMonitor removed — replaced by shell ABN_FULLSCREENAPP notification
+        private bool IsFullscreenOnTaskbarMonitor(IntPtr taskbarMonitor)
+        {
+            IntPtr fgWindow = GetForegroundWindow();
+            if (fgWindow == IntPtr.Zero || fgWindow == _hWnd) return false;
+
+            System.Text.StringBuilder sb = new System.Text.StringBuilder(256);
+            Win32Helper.GetClassName(fgWindow, sb, sb.Capacity);
+            string className = sb.ToString();
+
+            if (className == "Shell_TrayWnd" || 
+                className == "Shell_SecondaryTrayWnd" || 
+                className == "WorkerW" || 
+                className == "Progman" || 
+                className == "Windows.UI.Core.CoreWindow" || 
+                className == "SearchHost.Window" ||
+                className == "XamlExplorerHostIslandWindow" ||
+                className == "StartMenuExperienceHost" ||
+                className == "ControlCenterWindow")
+            {
+                return false;
+            }
+
+            if (fgWindow == Win32Helper.GetDesktopWindow()) return false;
+
+            IntPtr fgMonitor = MonitorFromWindow(fgWindow, 2);
+            if (fgMonitor != taskbarMonitor) return false;
+
+            if (Win32Helper.GetWindowRect(fgWindow, out Win32Helper.RECT rect))
+            {
+                MONITORINFO mi = new MONITORINFO();
+                mi.cbSize = (uint)Marshal.SizeOf(typeof(MONITORINFO));
+                if (GetMonitorInfo(taskbarMonitor, ref mi))
+                {
+                    return rect.Left   <= mi.rcMonitor.Left   &&
+                           rect.Top    <= mi.rcMonitor.Top    &&
+                           rect.Right  >= mi.rcMonitor.Right  &&
+                           rect.Bottom >= mi.rcMonitor.Bottom;
+                }
+            }
+            return false;
+        }
 
         private void AlignToTaskbarCenter()
         {
@@ -330,6 +392,7 @@ namespace Kil0bitSystemMonitor
                 int overlayHeight = (int)(32 * _dpiScale * (float)_config.Config.ScaleFactor);
                 int centerY = tbRect.Top + (tbHeight - overlayHeight) / 2;
                 
+                // Use screen coordinates (owned windows are top-level)
                 SetWindowPos(_hWnd, IntPtr.Zero, (int)_config.Config.X, centerY, 0, 0, 0x0001 | 0x0004 | 0x0010); // SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE
                 _config.Config.Y = centerY;
                 _config.SaveConfig();
@@ -338,179 +401,42 @@ namespace Kil0bitSystemMonitor
 
         private void UpdateLayer()
         {
-            bool isIcon = _config.Config.DisplayStyle == "Icon";
-            bool isCompact = _config.Config.DisplayStyle == "Compact";
-            
-            var allRows = new System.Collections.Generic.List<string>();
-
-            // Network
-            if (_config.Config.ShowNetUp) {
-                string prefix = isCompact ? "↑: " : (isIcon ? " " : "↑: ");
-                allRows.Add(prefix + _viewModel.Metrics.NetUpText);
-            }
-            if (_config.Config.ShowNetDown) {
-                string prefix = isCompact ? "↓: " : (isIcon ? " " : "↓: ");
-                allRows.Add(prefix + _viewModel.Metrics.NetDownText);
-            }
-
-            // CPU
-            if (_config.Config.ShowCpu) {
-                string prefix = isCompact ? "C: " : (isIcon ? " " : "CPU: ");
-                allRows.Add(prefix + _viewModel.CpuText);
-            }
-
-            // RAM
-            if (_config.Config.ShowRam) {
-                string prefix = isCompact ? "M: " : (isIcon ? " " : "MEM: ");
-                allRows.Add(prefix + _viewModel.RamPercentText);
-            }
-
-            // GPU
-            if (_config.Config.ShowGpu) {
-                string prefix = isCompact ? "G: " : (isIcon ? " " : "GPU: ");
-                allRows.Add(prefix + _viewModel.GpuText);
-            }
-
-            // Temp
-            if (_config.Config.ShowTemp) {
-                string prefix = isCompact ? "T: " : (isIcon ? " " : "TMP: ");
-                allRows.Add(prefix + _viewModel.GpuTempText);
-            }
-
-            // Disk Space & Usage
-            if (_config.Config.ShowDisk)
-            {
-                string tPrefix = isCompact ? "D: " : (isIcon ? " " : "DSK: ");
-                allRows.Add(tPrefix + _viewModel.Metrics.DiskSpaceText);
-                string bPrefix = isCompact ? "I: " : (isIcon ? " " : "I/O: ");
-                allRows.Add(bPrefix + $"{_viewModel.Metrics.DiskUsage:F0}%");
-            }
-
-            var columns = new System.Collections.Generic.List<(string Top, string Bottom)>();
-            for (int i = 0; i < allRows.Count; i += 2)
-            {
-                string t = allRows[i];
-                string b = (i + 1 < allRows.Count) ? allRows[i + 1] : "";
-                columns.Add((t, b));
-            }
-
-            // Ensure we have a graphics object for measurement
-            if (_offscreenGraphics == null)
-            {
-                _offscreenBitmap ??= new Bitmap(1, 1);
-                _offscreenGraphics = Graphics.FromImage(_offscreenBitmap);
-            }
-
-            string fontName = _config.Config.FontFamily;
-            if (string.IsNullOrEmpty(fontName) || fontName == "Default") fontName = SystemFonts.CaptionFont?.Name ?? "Segoe UI";
-            
-            // Apply DPI scaling AND user scale factor to font sizes
+            var columns = PrepareMetricsData(out bool isIcon);
             float effectiveScale = _dpiScale * (float)_config.Config.ScaleFactor;
-            float baseFontSize = 8.5f * effectiveScale;
-            float iconFontSize = 7.5f * effectiveScale;
+            
+            // 1. Prepare Fonts and Measurement
+            string fontName = _config.Config.FontFamily;
+            if (string.IsNullOrEmpty(fontName) || fontName == "Default") 
+                fontName = SystemFonts.CaptionFont?.Name ?? "Segoe UI";
+            
+            Font textFont = GetCachedFont(fontName, 8.5f * effectiveScale, _config.Config.IsTextBold ? FontStyle.Bold : FontStyle.Regular);
+            Font iconFont = GetCachedFont("Segoe MDL2 Assets", 7.5f * effectiveScale, _config.Config.IsIconBold ? FontStyle.Bold : FontStyle.Regular);
 
-            FontStyle textStyle = _config.Config.IsTextBold ? FontStyle.Bold : FontStyle.Regular;
-            FontStyle iconStyle = _config.Config.IsIconBold ? FontStyle.Bold : FontStyle.Regular;
-
-            Font textFont = GetCachedFont(fontName, baseFontSize, textStyle);
-            Font iconFontMeasure = GetCachedFont("Segoe MDL2 Assets", iconFontSize, iconStyle);
-
-            // Calculate individual widths for each column based on content type
-            float[] colWidths = new float[columns.Count];
-            float internalPadding = 2 * effectiveScale; 
-            float columnGap = 5 * effectiveScale;      
-
-            for (int i = 0; i < columns.Count; i++)
-            {
-                var col = columns[i];
-                float labelWidth;
-                if (isIcon)
-                {
-                    // Measure using the MDL2 reference glyph so icon columns size correctly
-                    labelWidth = GetCachedMeasure("", iconFontMeasure);
-                }
-                else
-                {
-                    string sampleLabel = "CPU: ";
-                    string primary = !string.IsNullOrEmpty(col.Top) ? col.Top : col.Bottom;
-                    int colonIdx = primary.IndexOf(':');
-                    if (colonIdx > 0) sampleLabel = primary.Substring(0, colonIdx + 1);
-
-                    labelWidth = GetCachedMeasure(sampleLabel.TrimEnd(), textFont);
-                }
-
-                string maxValStr = "100%";
-                string combined = (col.Top + col.Bottom);
-                if (combined.Contains("/s")) maxValStr = "999.9 KB/s";  // covers both KB/s and MB/s; KB/s is the wider form
-                else if (combined.Contains("°C") || combined.Contains("TMP:")) maxValStr = "100°C";
-                else if (combined.Contains("%")) maxValStr = "100%";
-                
-                float valueWidth = GetCachedMeasure(maxValStr, textFont);
-                colWidths[i] = labelWidth + internalPadding + valueWidth + columnGap;
-            }
-
-            int height = (int)(32 * effectiveScale); // Reduced base height slightly for tighter fit
+            // 2. Measure and Set Buffer Size
+            float[] colWidths = CalculateColumnWidths(columns, isIcon, textFont, iconFont, effectiveScale);
+            int height = (int)(32 * effectiveScale);
             float totalWidth = 5 * effectiveScale;
             foreach (var cw in colWidths) totalWidth += cw;
             int width = (int)Math.Max(20, totalWidth);
 
-            // Re-create offscreen buffer if size changed
-            if (_offscreenBitmap == null || _offscreenBitmap.Width != width || _offscreenBitmap.Height != height)
-            {
-                _offscreenGraphics?.Dispose();
-                _offscreenBitmap?.Dispose();
-                _offscreenBitmap = new Bitmap(width, height, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
-                _offscreenBitmap.SetResolution(96, 96); // Always 96 DPI — we handle DPI scaling manually via effectiveScale.
-                                                        // Without this, GDI+ may inherit screen DPI and double-scale fonts on high-DPI systems.
-                _offscreenGraphics = Graphics.FromImage(_offscreenBitmap);
-                _offscreenGraphics.SmoothingMode = SmoothingMode.AntiAlias;
-                _offscreenGraphics.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
-            }
+            EnsureOffscreenBuffer(width, height);
+            if (_offscreenGraphics == null || _offscreenBitmap == null) return;
 
+            // 3. Render
             _offscreenGraphics.Clear(Color.FromArgb(1, 0, 0, 0));
-
-            if (_config.Config.ShowBackground && _cachedBgBrush != null)
-            {
-                int r = (int)(12 * effectiveScale); // Synced with hover effect
-                using (GraphicsPath bgPath = new GraphicsPath())
-                {
-                    bgPath.AddArc(0, 0, r, r, 180, 90);
-                    bgPath.AddArc(width - r, 0, r, r, 270, 90);
-                    bgPath.AddArc(width - r, height - r, r, r, 0, 90);
-                    bgPath.AddArc(0, height - r, r, r, 90, 90);
-                    bgPath.CloseFigure();
-                    _offscreenGraphics.FillPath(_cachedBgBrush, bgPath);
-                }
-            }
-
-            if (_isHovered && _cachedHoverBrush != null && _cachedHoverPen != null)
-            {
-                using (GraphicsPath path = new GraphicsPath())
-                {
-                    int d = (int)(12 * _dpiScale);
-                    Rectangle r = new Rectangle(0, 0, width - 1, height - 1);
-                    path.AddArc(r.X, r.Y, d, d, 180, 90);
-                    path.AddArc(r.Right - d, r.Y, d, d, 270, 90);
-                    path.AddArc(r.Right - d, r.Bottom - d, d, d, 0, 90);
-                    path.AddArc(r.X, r.Bottom - d, d, d, 90, 90);
-                    path.CloseFigure();
-                    _offscreenGraphics.FillPath(_cachedHoverBrush, path);
-                    _offscreenGraphics.DrawPath(_cachedHoverPen, path);
-                }
-            }
+            RenderBackground(_offscreenGraphics, width, height, effectiveScale);
+            RenderHoverEffect(_offscreenGraphics, width, height, effectiveScale);
 
             Brush valueBrush = _cachedAccentBrush ?? Brushes.White;
             Brush iconBrush = _cachedIconBrush ?? Brushes.Aqua;
-            Font iconFont = GetCachedFont("Segoe MDL2 Assets", iconFontSize, iconStyle);
-
+            
+            float currentX = 5 * effectiveScale;
             float yTop = 0 * effectiveScale; 
             float yBot = 15 * effectiveScale; 
-            float currentX = 5 * effectiveScale;
-            
+
             for (int i = 0; i < columns.Count; i++)
             {
                 var col = columns[i];
-
                 if (!string.IsNullOrEmpty(col.Top) && !string.IsNullOrEmpty(col.Bottom))
                 {
                     RenderMetric(_offscreenGraphics, col.Top, currentX, yTop, isIcon, iconFont, textFont, iconBrush, valueBrush);
@@ -518,15 +444,102 @@ namespace Kil0bitSystemMonitor
                 }
                 else if (!string.IsNullOrEmpty(col.Top))
                 {
-                    // Center vertically if only one item in column
-                    float yCenter = 8.5f * _dpiScale; 
-                    RenderMetric(_offscreenGraphics, col.Top, currentX, yCenter, isIcon, iconFont, textFont, iconBrush, valueBrush);
+                    RenderMetric(_offscreenGraphics, col.Top, currentX, 8.5f * _dpiScale, isIcon, iconFont, textFont, iconBrush, valueBrush);
                 }
-                
                 currentX += colWidths[i];
             }
 
             SetBitmap(_offscreenBitmap);
+        }
+
+        private System.Collections.Generic.List<(string Top, string Bottom)> PrepareMetricsData(out bool isIcon)
+        {
+            isIcon = _config.Config.DisplayStyle == "Icon";
+            bool isCompact = _config.Config.DisplayStyle == "Compact";
+            var allRows = new System.Collections.Generic.List<string>();
+
+            if (_config.Config.ShowNetUp) allRows.Add((isCompact ? "↑: " : (isIcon ? " " : "↑: ")) + _viewModel.Metrics.NetUpText);
+            if (_config.Config.ShowNetDown) allRows.Add((isCompact ? "↓: " : (isIcon ? " " : "↓: ")) + _viewModel.Metrics.NetDownText);
+            if (_config.Config.ShowCpu) allRows.Add((isCompact ? "C: " : (isIcon ? " " : "CPU: ")) + _viewModel.CpuText);
+            if (_config.Config.ShowRam) allRows.Add((isCompact ? "M: " : (isIcon ? " " : "MEM: ")) + _viewModel.RamPercentText);
+            if (_config.Config.ShowGpu) allRows.Add((isCompact ? "G: " : (isIcon ? " " : "GPU: ")) + _viewModel.GpuText);
+            if (_config.Config.ShowTemp) allRows.Add((isCompact ? "T: " : (isIcon ? " " : "TMP: ")) + _viewModel.GpuTempText);
+            if (_config.Config.ShowDisk)
+            {
+                allRows.Add((isCompact ? "D: " : (isIcon ? " " : "DSK: ")) + _viewModel.Metrics.DiskSpaceText);
+                allRows.Add((isCompact ? "I: " : (isIcon ? " " : "I/O: ")) + $"{_viewModel.Metrics.DiskUsage:F0}%");
+            }
+
+            var columns = new System.Collections.Generic.List<(string Top, string Bottom)>();
+            for (int i = 0; i < allRows.Count; i += 2)
+            {
+                columns.Add((allRows[i], (i + 1 < allRows.Count) ? allRows[i + 1] : ""));
+            }
+            return columns;
+        }
+
+        private float[] CalculateColumnWidths(System.Collections.Generic.List<(string Top, string Bottom)> columns, bool isIcon, Font textFont, Font iconFont, float scale)
+        {
+            float[] colWidths = new float[columns.Count];
+            float padding = 2 * scale; 
+            float gap = 5 * scale;      
+
+            for (int i = 0; i < columns.Count; i++)
+            {
+                var col = columns[i];
+                float labelWidth = isIcon ? GetCachedMeasure("", iconFont) : GetCachedMeasure("CPU:", textFont);
+
+                string sample = (col.Top + col.Bottom);
+                string maxVal = "100%";
+                if (sample.Contains("/s")) maxVal = "999.9 KB/s";
+                else if (sample.Contains("°C") || sample.Contains("TMP:")) maxVal = "100°C";
+                
+                colWidths[i] = labelWidth + padding + GetCachedMeasure(maxVal, textFont) + gap;
+            }
+            return colWidths;
+        }
+
+        private void EnsureOffscreenBuffer(int width, int height)
+        {
+            if (_offscreenBitmap == null || _offscreenBitmap.Width != width || _offscreenBitmap.Height != height)
+            {
+                _offscreenGraphics?.Dispose();
+                _offscreenBitmap?.Dispose();
+                _offscreenBitmap = new Bitmap(width, height, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+                _offscreenBitmap.SetResolution(96, 96);
+                _offscreenGraphics = Graphics.FromImage(_offscreenBitmap);
+                _offscreenGraphics.SmoothingMode = SmoothingMode.AntiAlias;
+                _offscreenGraphics.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
+            }
+        }
+
+        private void RenderBackground(Graphics g, int w, int h, float scale)
+        {
+            if (!_config.Config.ShowBackground || _cachedBgBrush == null) return;
+            int r = (int)(12 * scale);
+            using var path = CreateRoundedRectPath(0, 0, w, h, r);
+            g.FillPath(_cachedBgBrush, path);
+        }
+
+        private void RenderHoverEffect(Graphics g, int w, int h, float scale)
+        {
+            if (!_isHovered || _cachedHoverBrush == null || _cachedHoverPen == null) return;
+            int r = (int)(12 * scale);
+            using var path = CreateRoundedRectPath(0, 0, w - 1, h - 1, r);
+            g.FillPath(_cachedHoverBrush, path);
+            g.DrawPath(_cachedHoverPen, path);
+        }
+
+        private GraphicsPath CreateRoundedRectPath(int x, int y, int w, int h, int r)
+        {
+            GraphicsPath path = new GraphicsPath();
+            if (r <= 0) { path.AddRectangle(new Rectangle(x, y, w, h)); return path; }
+            path.AddArc(x, y, r, r, 180, 90);
+            path.AddArc(x + w - r, y, r, r, 270, 90);
+            path.AddArc(x + w - r, y + h - r, r, r, 0, 90);
+            path.AddArc(x, y + h - r, r, r, 90, 90);
+            path.CloseFigure();
+            return path;
         }
 
         private void RenderMetric(Graphics g, string raw, float x, float y, bool isIcon, Font iconFont, Font textFont, Brush iconBrush, Brush valueBrush)
@@ -652,8 +665,8 @@ namespace Kil0bitSystemMonitor
             {
                 _telemetry.MetricsUpdated -= _onMetricsUpdated;
                 _config.Config.PropertyChanged -= _onConfigPropertyChanged;
+                _zOrderTimer?.Dispose();
 
-                // Unregister from the appbar system before destroying the window
                 UnregisterAppBar();
 
                 ClearCaches();
@@ -758,7 +771,6 @@ namespace Kil0bitSystemMonitor
             }
             if (msg == WM_WINDOWPOSCHANGED)
             {
-                // Notify the shell that our position changed so it can track us correctly
                 if (_appbarRegistered)
                 {
                     APPBARDATA abd = new APPBARDATA();
@@ -770,31 +782,11 @@ namespace Kil0bitSystemMonitor
             }
             if (msg == WM_APPBAR_CALLBACK)
             {
-                // Shell appbar notification — wParam contains the notification code
                 uint notifyCode = (uint)wParam.ToInt32();
                 if (notifyCode == ABN_FULLSCREENAPP)
                 {
-                    // lParam is TRUE when a fullscreen app is entering, FALSE when leaving
-                    bool entering = lParam != IntPtr.Zero;
-                    _shellFullscreen = entering;
-
-                    _dispatcher.TryEnqueue(() =>
-                    {
-                        if (_shellFullscreen && _config.Config.HideOnFullscreen)
-                        {
-                            // Drop below fullscreen window — same behavior as taskbar
-                            SetWindowPos(_hWnd, (IntPtr)1, 0, 0, 0, 0,
-                                0x0002 | 0x0001 | 0x0010); // HWND_BOTTOM | SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE
-                            ShowWindow(_hWnd, 0); // SW_HIDE
-                        }
-                        else
-                        {
-                            // Restore — come back to topmost, same as taskbar
-                            ShowWindow(_hWnd, 5); // SW_SHOW
-                            SetWindowPos(_hWnd, (IntPtr)(-1), 0, 0, 0, 0,
-                                0x0002 | 0x0001 | 0x0010); // HWND_TOPMOST | SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE
-                        }
-                    });
+                    _shellFullscreen = (lParam != IntPtr.Zero);
+                    _dispatcher.TryEnqueue(UpdateVisibility);
                 }
                 return IntPtr.Zero;
             }
@@ -868,9 +860,11 @@ namespace Kil0bitSystemMonitor
                 if (Win32Helper.GetCursorPos(out Win32Helper.POINT pt))
                 {
                     // Enable dark mode for Win32 menus via undocumented uxtheme ordinals
-                    SetPreferredAppMode(2); // PreferredAppMode::ForceDark
+                    SetPreferredAppMode(2); 
                     AllowDarkModeForWindow(hWnd, true);
-                    FlushMenuThemes();                    IntPtr hMenu = CreatePopupMenu();
+                    FlushMenuThemes();
+                    
+                    IntPtr hMenu = CreatePopupMenu();
                     AppendMenu(hMenu, 0x0000, 1001, "Settings");
                     AppendMenu(hMenu, 0x0000, 1002, "Task Manager");
                     AppendMenu(hMenu, 0x0800, 0, null); // Separator
@@ -1096,7 +1090,7 @@ namespace Kil0bitSystemMonitor
         [DllImport("shcore.dll")]
         static extern int GetProcessDpiAwareness(IntPtr hprocess, out int awareness);
 
-        // Appbar P/Invoke — same shell API the Windows taskbar uses
+        // Appbar P/Invoke
         [StructLayout(LayoutKind.Sequential)]
         struct APPBARDATA
         {
