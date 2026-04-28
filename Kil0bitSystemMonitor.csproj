@@ -27,21 +27,6 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <Resource Include="Assets\SplashScreen.png" />
-        <Resource Include="Assets\LockScreenLogo.png" />
-        <Resource Include="Assets\Square150x150Logo.png" />
-        <Resource Include="Assets\Square44x44Logo.png" />
-        <Resource Include="Assets\Square44x44Logo.targetsize-16.png" />
-        <Resource Include="Assets\Square44x44Logo.targetsize-16_altform-unplated.png" />
-        <Resource Include="Assets\Square44x44Logo.targetsize-24.png" />
-        <Resource Include="Assets\Square44x44Logo.targetsize-24_altform-unplated.png" />
-        <Resource Include="Assets\Square44x44Logo.targetsize-32.png" />
-        <Resource Include="Assets\Square44x44Logo.targetsize-32_altform-unplated.png" />
-        <Resource Include="Assets\Square44x44Logo.targetsize-48.png" />
-        <Resource Include="Assets\Square44x44Logo.targetsize-48_altform-unplated.png" />
-        <Resource Include="Assets\Square44x44Logo.targetsize-256.png" />
-        <Resource Include="Assets\Square44x44Logo.targetsize-256_altform-unplated.png" />
-        <Resource Include="Assets\Wide310x150Logo.png" />
         <None Include="icon.ico">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </None>
