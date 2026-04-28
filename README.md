@@ -34,13 +34,12 @@ Kil0bit System Monitor is a modern successor to legacy taskbar monitors. It’s 
 ---
 
 ## ✨ v3.0.0 Gold Highlights
-- **🪶 Ultra-Lightweight**: Re-engineered for a tiny **~2.5 MB footprint** by optimizing for the native .NET 8 runtime.
+- **🪶 Ultra-Lightweight**: Re-engineered for a tiny **~2.71 MB footprint** by optimizing for the native .NET 8 runtime.
 - **🚀 Multi-Disk Monitoring**: Track activity across all your drives simultaneously with a dynamic 3x3 layout.
 - **📐 Smart Alignment**: Pixel-perfect layout stability across Icon, Text, and Compact modes.
 - **🛡️ Admin-Less Telemetry**: Access hardware telemetry without UAC elevation or system crashes.
 - **🖥️ Taskbar Stability**: Hybrid Owned-Appbar integration for rock-solid visibility during system interactions.
 - **🏠 Refined Dashboard**: Modern, high-contrast Welcome screen with glassmorphism effects.
-- **🎨 High-Res Branding**: Full 32-bit ARGB multi-resolution icons for a professional OS presence.
 
 ## 📸 Screenshots
 
