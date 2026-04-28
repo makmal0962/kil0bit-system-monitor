@@ -1,4 +1,4 @@
-### kil0bit System Monitor V3 COMING SOON!>>>>>>>>>
+### kil0bit System Monitor
 
 <div align="center">
 
