@@ -40,7 +40,7 @@ jobs:
         dotnet publish Kil0bitSystemMonitor.csproj `
           -c Release `
           --self-contained false `
-          -p:PublishSingleFile=true `
+          -p:PublishSingleFile=false `
           -p:DebugType=none `
           -p:DebugSymbols=false `
           -o release-output

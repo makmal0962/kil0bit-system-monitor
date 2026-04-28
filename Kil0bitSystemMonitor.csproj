@@ -18,6 +18,7 @@
         <Nullable>enable</Nullable>
         <LangVersion>latest</LangVersion>
         <ImplicitUsings>enable</ImplicitUsings>
+        <SatelliteResourceLanguages>en-US</SatelliteResourceLanguages>
         <AssemblyName>Kil0bitSystemMonitor</AssemblyName>
         <RootNamespace>Kil0bitSystemMonitor</RootNamespace>
 
