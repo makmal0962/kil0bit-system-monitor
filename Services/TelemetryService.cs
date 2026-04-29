@@ -149,22 +149,30 @@ namespace Kil0bitSystemMonitor.Services
             _cpuCounter = new PerformanceCounter("Processor", "% Processor Time", "_Total");
             
             _config.Config.PropertyChanged += Config_PropertyChanged;
-            InitializeGpu();
-            InitializeDisk();
-            InitializeNetwork();
-            _lastNetTime = DateTime.Now;
+            
+            // Perform heavy initialization in background to keep UI thread free
+            _ = System.Threading.Tasks.Task.Run(() => {
+                try 
+                {
+                    InitializeGpu();
+                    InitializeDisk();
+                    InitializeNetwork();
+                    _lastNetTime = DateTime.Now;
 
-            _timer = new System.Timers.Timer(_config.Config.UpdateInterval);
-            _timer.AutoReset = false; // Prevents overlapping callbacks if UpdateMetrics takes >1s
-            _timer.Elapsed += (s, e) =>
-            {
-                try   { UpdateMetrics(); }
-                finally { _timer?.Start(); } // Re-arm only after completion
-            };
-            _timer.Start();
+                    _timer = new System.Timers.Timer(_config.Config.UpdateInterval);
+                    _timer.AutoReset = false; 
+                    _timer.Elapsed += (s, e) =>
+                    {
+                        try   { UpdateMetrics(); }
+                        finally { _timer?.Start(); } 
+                    };
+                    _timer.Start();
 
-            // Perform first update immediately
-            UpdateMetrics();
+                    // Perform first update immediately
+                    UpdateMetrics();
+                }
+                catch { }
+            });
         }
 
         private void InitializeGpu()

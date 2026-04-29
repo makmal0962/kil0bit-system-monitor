@@ -33,6 +33,7 @@ namespace Kil0bitSystemMonitor
 
         public System.Collections.ObjectModel.ObservableCollection<DiskSelectionItem> DiskItems { get; } = new();
         private System.Collections.Generic.List<string> _diskSelectionOrder = new();
+        private bool _isNavigating = false;
 
         public SettingsWindow(MainViewModel viewModel, ConfigService config)
         {
@@ -47,12 +48,10 @@ namespace Kil0bitSystemMonitor
                 if (!System.IO.File.Exists(iconPath)) iconPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "icon.png");
                 Kil0bitSystemMonitor.Helpers.Win32Helper.SetAppIcon(new System.Windows.Interop.WindowInteropHelper(this).Handle, iconPath);
 
-                PopulateGpuList();
-                PopulateDiskList();
-                PopulateNetworkList();
-                EnsureValidSelections();
-                
                 this.DataContext = _viewModel;
+                
+                // Load heavy hardware lists in background to keep UI snappy
+                LoadHardwareDataAsync();
             }
             catch (Exception ex)
             {
@@ -60,11 +59,31 @@ namespace Kil0bitSystemMonitor
             }
         }
 
-        private void PopulateNetworkList()
+        private async void LoadHardwareDataAsync()
         {
             try
             {
-                var adapters = TelemetryService.GetAvailableNetworkAdapters();
+                // Defer heavy WMI/PerfCounter calls to background thread
+                var gpus = await System.Threading.Tasks.Task.Run(() => TelemetryService.GetAvailableGpus());
+                var disks = await System.Threading.Tasks.Task.Run(() => TelemetryService.GetAvailableDisks());
+                var adapters = await System.Threading.Tasks.Task.Run(() => TelemetryService.GetAvailableNetworkAdapters());
+
+                Dispatcher.Invoke(() => {
+                    PopulateGpuList(gpus);
+                    PopulateDiskList(disks);
+                    PopulateNetworkList(adapters);
+                    EnsureValidSelections();
+                });
+            }
+            catch { }
+        }
+
+        private void PopulateNetworkList(System.Collections.Generic.List<string> adapters)
+        {
+            try
+            {
+                NetAdapterCombo.Items.Clear();
+                NetAdapterCombo.Items.Add(new ComboBoxItem { Content = "Default" });
                 foreach (var adapter in adapters)
                 {
                     NetAdapterCombo.Items.Add(new ComboBoxItem { Content = adapter });
@@ -73,11 +92,12 @@ namespace Kil0bitSystemMonitor
             catch { }
         }
 
-        private void PopulateGpuList()
+        private void PopulateGpuList(System.Collections.Generic.List<string> gpus)
         {
             try
             {
-                var gpus = TelemetryService.GetAvailableGpus();
+                GpuAdapterCombo.Items.Clear();
+                GpuAdapterCombo.Items.Add(new ComboBoxItem { Content = "Default" });
                 foreach (var gpu in gpus)
                 {
                     GpuAdapterCombo.Items.Add(new ComboBoxItem { Content = gpu });
@@ -86,12 +106,11 @@ namespace Kil0bitSystemMonitor
             catch { }
         }
 
-        private void PopulateDiskList()
+        private void PopulateDiskList(System.Collections.Generic.List<string> disks)
         {
             try
             {
                 DiskItems.Clear();
-                var disks = TelemetryService.GetAvailableDisks();
                 var selectedArray = _config.Config.SelectedDisks?.Split(';', StringSplitOptions.RemoveEmptyEntries) ?? new string[] { "All" };
                 
                 _diskSelectionOrder.Clear();
@@ -381,31 +400,40 @@ namespace Kil0bitSystemMonitor
 
         public void SelectSection(string sectionName)
         {
-            if (string.IsNullOrEmpty(sectionName)) return;
+            if (string.IsNullOrEmpty(sectionName) || _isNavigating) return;
 
-            HomeSection.Visibility = Visibility.Collapsed;
-            GeneralSection.Visibility = Visibility.Collapsed;
-            MonitoringSection.Visibility = Visibility.Collapsed;
-            AppearanceSection.Visibility = Visibility.Collapsed;
-            AboutSection.Visibility = Visibility.Collapsed;
-
-            switch (sectionName)
+            _isNavigating = true;
+            try
             {
-                case "Home": HomeSection.Visibility = Visibility.Visible; break;
-                case "General": GeneralSection.Visibility = Visibility.Visible; break;
-                case "Monitoring": MonitoringSection.Visibility = Visibility.Visible; break;
-                case "Appearance": AppearanceSection.Visibility = Visibility.Visible; break;
-                case "About": AboutSection.Visibility = Visibility.Visible; break;
-            }
+                HomeSection.Visibility = Visibility.Collapsed;
+                GeneralSection.Visibility = Visibility.Collapsed;
+                MonitoringSection.Visibility = Visibility.Collapsed;
+                AppearanceSection.Visibility = Visibility.Collapsed;
+                AboutSection.Visibility = Visibility.Collapsed;
 
-            // Sync Nav selection
-            foreach (var item in SettingsNav.MenuItems.OfType<ModernWpf.Controls.NavigationViewItem>())
-            {
-                if (item.Tag?.ToString() == sectionName)
+                switch (sectionName)
                 {
-                    SettingsNav.SelectedItem = item;
-                    break;
+                    case "Home": HomeSection.Visibility = Visibility.Visible; break;
+                    case "General": GeneralSection.Visibility = Visibility.Visible; break;
+                    case "Monitoring": MonitoringSection.Visibility = Visibility.Visible; break;
+                    case "Appearance": AppearanceSection.Visibility = Visibility.Visible; break;
+                    case "About": AboutSection.Visibility = Visibility.Visible; break;
                 }
+
+                // Sync Nav selection safely
+                foreach (var item in SettingsNav.MenuItems.OfType<ModernWpf.Controls.NavigationViewItem>())
+                {
+                    if (item.Tag?.ToString() == sectionName)
+                    {
+                        if (SettingsNav.SelectedItem != item)
+                            SettingsNav.SelectedItem = item;
+                        break;
+                    }
+                }
+            }
+            finally
+            {
+                _isNavigating = false;
             }
         }
 
