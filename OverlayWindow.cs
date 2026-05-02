@@ -465,6 +465,7 @@ namespace Kil0bitSystemMonitor
         private IntPtr WndProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam)
         {
             if (msg == 0x0084) return (IntPtr)1;
+            if (msg == 0x0010) return IntPtr.Zero; // WM_CLOSE — ignore, overlay is not closeable
             if (msg == WM_WINDOWPOSCHANGING && _config.Config.StickToTaskbar)
             {
                 WINDOWPOS pos = Marshal.PtrToStructure<WINDOWPOS>(lParam);

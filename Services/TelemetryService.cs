@@ -27,6 +27,8 @@ namespace Kil0bitSystemMonitor.Services
         private System.Timers.Timer? _timer;
         private float _nvidiaUsageValue = 0;
         private float _nvidiaTempValue = 0;
+        private LibreHardwareMonitor.Hardware.Computer? _lhmComputer;
+        private LibreHardwareMonitor.Hardware.ISensor? _lhmGpuTempSensor;
         
         private long _lastNetUp;
         private long _lastNetDown;
@@ -260,12 +262,15 @@ namespace Kil0bitSystemMonitor.Services
                             }
                         }
 
-                        bool isDedicatedSelection = _isNvidiaSelected || 
-                                                    selectedName.Contains("AMD", StringComparison.OrdinalIgnoreCase) ||
-                                                    selectedName.Contains("Arc", StringComparison.OrdinalIgnoreCase) ||
-                                                    selectedName.Contains("Radeon", StringComparison.OrdinalIgnoreCase);
+                        bool isDedicatedSelection = _isNvidiaSelected ||
+                            selectedName.Contains("Arc", StringComparison.OrdinalIgnoreCase);
+                        bool isAmdApu = (selectedName.Contains("AMD", StringComparison.OrdinalIgnoreCase) ||
+                                        selectedName.Contains("Radeon", StringComparison.OrdinalIgnoreCase)) &&
+                                        dedicatedLuidCandidate == null;
 
-                        _selectedGpuLuid = isDedicatedSelection ? dedicatedLuidCandidate : (sharedLuidCandidate ?? dedicatedLuidCandidate);
+                        _selectedGpuLuid = (isDedicatedSelection && !isAmdApu)
+                            ? dedicatedLuidCandidate
+                            : (sharedLuidCandidate ?? dedicatedLuidCandidate);
                     }
                     catch { }
                 }
@@ -274,6 +279,7 @@ namespace Kil0bitSystemMonitor.Services
                 UpdateGpuCounters();
                 
                 StartSmiReader();
+                InitializeLhm();
             }
             catch (Exception)
             {
@@ -595,6 +601,26 @@ namespace Kil0bitSystemMonitor.Services
             catch { }
         }
 
+        private void InitializeLhm()
+        {
+            try
+            {
+                _lhmComputer?.Close();
+                _lhmComputer = new LibreHardwareMonitor.Hardware.Computer { IsGpuEnabled = true };
+                _lhmComputer.Open();
+                _lhmGpuTempSensor = null;
+                foreach (var hw in _lhmComputer.Hardware)
+                {
+                    hw.Update();
+                    _lhmGpuTempSensor = hw.Sensors.FirstOrDefault(s =>
+                        s.SensorType == LibreHardwareMonitor.Hardware.SensorType.Temperature &&
+                        s.Name.Contains("Core", StringComparison.OrdinalIgnoreCase));
+                    if (_lhmGpuTempSensor != null) break;
+                }
+            }
+            catch { }
+        }
+
         private float GetNvidiaUsage()
         {
             return _nvidiaUsageValue;
@@ -786,6 +812,23 @@ namespace Kil0bitSystemMonitor.Services
                     return temp;
                 }
 
+                // Method 2.5: LHM — AMD APU iGPU die temp, requires admin
+                if (_lhmGpuTempSensor != null)
+                {
+                    try
+                    {
+                        _lhmGpuTempSensor.Hardware.Update();
+                        float? val = _lhmGpuTempSensor.Value;
+                        if (val.HasValue && val.Value > 10 && val.Value < 120)
+                        {
+                            _lastGpuTemp = val.Value;
+                            _lastGpuTempTime = DateTime.Now;
+                            return val.Value;
+                        }
+                    }
+                    catch { }
+                }
+
                 // Method 3: ACPI Thermal Zone (Universal fallback for Laptops/iGPUs)
                 try
                 {
@@ -928,6 +971,7 @@ namespace Kil0bitSystemMonitor.Services
                 _cpuCounter.Dispose();
                 foreach (var set in _diskCounters.Values) set.Dispose();
                 foreach (var c in _gpuCounters.Values) c.Dispose();
+                _lhmComputer?.Close();
             }
             catch { }
         }
