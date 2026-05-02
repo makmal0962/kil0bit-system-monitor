@@ -265,7 +265,10 @@ namespace Kil0bitSystemMonitor.Services
                         bool isDedicatedSelection = _isNvidiaSelected ||
                             selectedName.Contains("Arc", StringComparison.OrdinalIgnoreCase);
                         bool isAmdApu = (selectedName.Contains("AMD", StringComparison.OrdinalIgnoreCase) ||
-                                        selectedName.Contains("Radeon", StringComparison.OrdinalIgnoreCase)) &&
+                                        selectedName.Contains("Radeon", StringComparison.OrdinalIgnoreCase) ||
+                                        selectedName.Contains("Intel", StringComparison.OrdinalIgnoreCase) ||
+                                        selectedName.Contains("UHD", StringComparison.OrdinalIgnoreCase) ||
+                                        selectedName.Contains("Iris", StringComparison.OrdinalIgnoreCase)) &&
                                         dedicatedLuidCandidate == null;
 
                         _selectedGpuLuid = (isDedicatedSelection && !isAmdApu)
