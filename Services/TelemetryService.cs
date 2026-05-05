@@ -27,6 +27,7 @@ namespace Kil0bitSystemMonitor.Services
         private System.Timers.Timer? _timer;
         private float _nvidiaUsageValue = 0;
         private float _nvidiaTempValue = 0;
+        private AmdAdlService? _adlService;
         
         private long _lastNetUp;
         private long _lastNetDown;
@@ -260,12 +261,19 @@ namespace Kil0bitSystemMonitor.Services
                             }
                         }
 
-                        bool isDedicatedSelection = _isNvidiaSelected || 
-                                                    selectedName.Contains("AMD", StringComparison.OrdinalIgnoreCase) ||
-                                                    selectedName.Contains("Arc", StringComparison.OrdinalIgnoreCase) ||
-                                                    selectedName.Contains("Radeon", StringComparison.OrdinalIgnoreCase);
+                        // NVIDIA and Arc are discrete; AMD/Radeon/Intel UHD/Iris may be APU (zero dedicated VRAM)
+                        bool isDedicatedSelection = _isNvidiaSelected ||
+                            selectedName.Contains("Arc", StringComparison.OrdinalIgnoreCase);
+                        bool isAmdApu = (selectedName.Contains("AMD", StringComparison.OrdinalIgnoreCase) ||
+                                        selectedName.Contains("Radeon", StringComparison.OrdinalIgnoreCase) ||
+                                        selectedName.Contains("Intel", StringComparison.OrdinalIgnoreCase) ||
+                                        selectedName.Contains("UHD", StringComparison.OrdinalIgnoreCase) ||
+                                        selectedName.Contains("Iris", StringComparison.OrdinalIgnoreCase)) &&
+                                        dedicatedLuidCandidate == null;
 
-                        _selectedGpuLuid = isDedicatedSelection ? dedicatedLuidCandidate : (sharedLuidCandidate ?? dedicatedLuidCandidate);
+                        _selectedGpuLuid = (isDedicatedSelection && !isAmdApu)
+                            ? dedicatedLuidCandidate
+                            : (sharedLuidCandidate ?? dedicatedLuidCandidate);
                     }
                     catch { }
                 }
@@ -274,11 +282,10 @@ namespace Kil0bitSystemMonitor.Services
                 UpdateGpuCounters();
                 
                 StartSmiReader();
+                _adlService?.Dispose();
+                _adlService = new AmdAdlService();
             }
-            catch (Exception)
-            {
-                // Silently fail
-            }
+            catch { }
         }
 
         private void InitializeDisk()
@@ -649,7 +656,8 @@ namespace Kil0bitSystemMonitor.Services
                         openLuid.AdapterLuid.LowPart = uint.Parse(lowStr, System.Globalization.NumberStyles.HexNumber);
                         openLuid.AdapterLuid.HighPart = int.Parse(highStr, System.Globalization.NumberStyles.HexNumber);
 
-                        if (D3DKMTOpenAdapterFromLuid(ref openLuid) == 0)
+                        int openResult = D3DKMTOpenAdapterFromLuid(ref openLuid);
+                        if (openResult == 0)
                         {
                             var perfData = new D3DKMT_ADAPTER_PERFDATA();
                             int structSize = Marshal.SizeOf(perfData);
@@ -786,7 +794,19 @@ namespace Kil0bitSystemMonitor.Services
                     return temp;
                 }
 
-                // Method 3: ACPI Thermal Zone (Universal fallback for Laptops/iGPUs)
+                // Method 2.5: ADL — AMD APU iGPU die temp, no kernel driver needed
+                if (_adlService != null && _adlService.IsAvailable)
+                {
+                    float val = _adlService.GetGpuTemperature();
+                    if (val > 0)
+                    {
+                        _lastGpuTemp = val;
+                        _lastGpuTempTime = DateTime.Now;
+                        return val;
+                    }
+                }
+
+                // Method 3: ACPI Thermal Zone
                 try
                 {
                     using (var searcher = new ManagementObjectSearcher(@"root\WMI", "SELECT CurrentTemperature FROM MSAcpi_ThermalZoneTemperature"))
@@ -928,6 +948,7 @@ namespace Kil0bitSystemMonitor.Services
                 _cpuCounter.Dispose();
                 foreach (var set in _diskCounters.Values) set.Dispose();
                 foreach (var c in _gpuCounters.Values) c.Dispose();
+                _adlService?.Dispose();
             }
             catch { }
         }
