@@ -3,6 +3,7 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Text;
 using System.Runtime.InteropServices;
+using System.Text;
 using Kil0bitSystemMonitor.Helpers;
 using Kil0bitSystemMonitor.Services;
 using Kil0bitSystemMonitor.ViewModels;
@@ -37,6 +38,7 @@ namespace Kil0bitSystemMonitor
         private byte _targetAlpha = 255;
         private bool _overlayVisible = true;
         private System.Windows.Threading.DispatcherTimer? _fadeTimer;
+        private System.Windows.Threading.DispatcherTimer? _hideDebounceTimer;
         
         private readonly System.Collections.Generic.Dictionary<string, Font> _fontCache = new();
         private readonly System.Collections.Generic.Dictionary<string, float> _measureCache = new();
@@ -87,6 +89,7 @@ namespace Kil0bitSystemMonitor
         private const uint ABM_REMOVE = 0x00000001;
         private const uint ABN_FULLSCREENAPP = 0x00000002;
         private const uint ABM_WINDOWPOSCHANGED = 0x00000009;
+        private const uint GW_HWNDPREV = 3;
 
         [StructLayout(LayoutKind.Sequential)]
         private struct WINDOWPOS { public IntPtr hwnd; public IntPtr hwndInsertAfter; public int x; public int y; public int cx; public int cy; public uint flags; }
@@ -136,6 +139,10 @@ namespace Kil0bitSystemMonitor
                 if (_currentDpi == 0) _currentDpi = 96;
                 _dpiScale = _currentDpi / 96.0f;
 
+                // Disable DWM animations to prevent flickering during Task View zoom transitions
+                int disableTransitions = 1;
+                Win32Helper.DwmSetWindowAttribute(_hWnd, 3, ref disableTransitions, sizeof(int));
+
                 AttachToTaskbar();
                 ShowWindow(_hWnd, 5);
                 AlignToTaskbarCenter();
@@ -181,14 +188,32 @@ namespace Kil0bitSystemMonitor
         {
             _dispatcher.BeginInvoke(() =>
             {
-                // Check if target visibility needs to change — don't call ShowWindow redundantly
-                byte want = ShouldShowOverlay() ? (byte)255 : (byte)0;
-                if (want != _targetAlpha) { _targetAlpha = want; StartFade(); }
-                // Only reassert TOPMOST if enabled. 
-                // Constant hammering of NOTOPMOST causes flicker, especially when parented to taskbar.
+                bool show = ShouldShowOverlay();
+                
+                if (show)
+                {
+                    _hideDebounceTimer?.Stop();
+                    if (_targetAlpha != 255) { _targetAlpha = 255; StartFade(); }
+                }
+                else
+                {
+                    // Debounce hide by 300ms to prevent flickering during shell animations
+                    if (_hideDebounceTimer == null)
+                    {
+                        _hideDebounceTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(300) };
+                        _hideDebounceTimer.Tick += (s, e) => { _hideDebounceTimer.Stop(); if (!ShouldShowOverlay()) { _targetAlpha = 0; StartFade(); } };
+                    }
+                    if (!_hideDebounceTimer.IsEnabled && _targetAlpha != 0) _hideDebounceTimer.Start();
+                }
+
                 if (_overlayVisible && _config.Config.AlwaysOnTop) 
                 {
-                    SetWindowPos(_hWnd, Win32Helper.HWND_TOPMOST, 0, 0, 0, 0, Win32Helper.SWP_NOMOVE | Win32Helper.SWP_NOSIZE | Win32Helper.SWP_NOACTIVATE | 0x0040);
+                    // Smart check: Only re-assert TOPMOST if we are NOT already the top-most window.
+                    IntPtr prev = GetWindow(_hWnd, GW_HWNDPREV);
+                    if (prev != IntPtr.Zero)
+                    {
+                        SetWindowPos(_hWnd, Win32Helper.HWND_TOPMOST, 0, 0, 0, 0, Win32Helper.SWP_NOMOVE | Win32Helper.SWP_NOSIZE | Win32Helper.SWP_NOACTIVATE | 0x0040);
+                    }
                 }
             });
         }
@@ -208,8 +233,22 @@ namespace Kil0bitSystemMonitor
         private void UnregisterAppBar() { if (!_appbarRegistered || _hWnd == IntPtr.Zero) return; APPBARDATA abd = new APPBARDATA { cbSize = Marshal.SizeOf(typeof(APPBARDATA)), hWnd = _hWnd }; SHAppBarMessage(ABM_REMOVE, ref abd); _appbarRegistered = false; }
         private void UpdateVisibility()
         {
-            _targetAlpha = ShouldShowOverlay() ? (byte)255 : (byte)0;
-            StartFade();
+            bool show = ShouldShowOverlay();
+            if (show)
+            {
+                _hideDebounceTimer?.Stop();
+                _targetAlpha = 255; 
+                StartFade();
+            }
+            else
+            {
+                if (_hideDebounceTimer == null)
+                {
+                    _hideDebounceTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(300) };
+                    _hideDebounceTimer.Tick += (s, e) => { _hideDebounceTimer.Stop(); if (!ShouldShowOverlay()) { _targetAlpha = 0; StartFade(); } };
+                }
+                if (!_hideDebounceTimer.IsEnabled && _targetAlpha != 0) _hideDebounceTimer.Start();
+            }
         }
 
         // Starts the fade timer if not already running.
@@ -255,6 +294,10 @@ namespace Kil0bitSystemMonitor
 
             if (_config.Config.HideOnFullscreen)
             {
+                IntPtr fg = GetForegroundWindow();
+                // Priority: If we are in the shell (Task View, Desktop), always show
+                if (IsShellWindow(fg)) return true;
+
                 // ABN_FULLSCREENAPP fired — shell says a fullscreen app is covering the taskbar
                 if (_shellFullscreen) return false;
 
@@ -265,26 +308,55 @@ namespace Kil0bitSystemMonitor
 
                 // Fallback: check foreground window — catches windowed-fullscreen games that never
                 // fire ABN_FULLSCREENAPP (most modern titles, browser F11, video players, etc.)
-                IntPtr fg = GetForegroundWindow();
                 if (fg != IntPtr.Zero && fg != _hWnd)
                 {
+                    // Check if foreground window covers the whole monitor
                     if (Win32Helper.GetWindowRect(fg, out Win32Helper.RECT fgRect))
                     {
-                        IntPtr hMon = MonitorFromWindow(fg, 1);
+                        IntPtr hMon = MonitorFromWindow(fg, 1); // MONITOR_DEFAULTTONEAREST
                         MONITORINFO mi = new MONITORINFO { cbSize = (uint)Marshal.SizeOf(typeof(MONITORINFO)) };
                         if (GetMonitorInfo(hMon, ref mi))
                         {
                             var s = mi.rcMonitor;
-                            // A window covering the full monitor extent = effectively fullscreen
                             if (fgRect.Left <= s.Left && fgRect.Top <= s.Top &&
                                 fgRect.Right >= s.Right && fgRect.Bottom >= s.Bottom)
+                            {
                                 return false;
+                            }
                         }
                     }
                 }
             }
 
             return true;
+        }
+
+        private bool IsShellWindow(IntPtr hWnd)
+        {
+            if (hWnd == IntPtr.Zero) return false;
+            StringBuilder sb = new StringBuilder(256);
+            Win32Helper.GetClassName(hWnd, sb, sb.Capacity);
+            string cls = sb.ToString();
+            if (cls == "Progman" || cls == "WorkerW" || cls == "Shell_TrayWnd" || cls == "Shell_SecondaryTrayWnd" || 
+                   cls == "MultitaskingViewFrame" || cls == "TaskView" || cls == "Windows.UI.Core.CoreWindow" ||
+                   cls == "XamlExplorerViewHostWindow" || cls == "DesktopWindowXamlSource")
+                return true;
+
+            try
+            {
+                GetWindowThreadProcessId(hWnd, out uint pid);
+                if (pid != 0)
+                {
+                    using (var p = System.Diagnostics.Process.GetProcessById((int)pid))
+                    {
+                        string pname = p.ProcessName.ToLower();
+                        return (pname == "explorer" || pname == "shellexperiencehost" || 
+                                pname == "startmenuexperiencehost" || pname == "searchhost");
+                    }
+                }
+            }
+            catch { }
+            return false;
         }
 
         private void AlignToTaskbarCenter()
@@ -614,6 +686,7 @@ namespace Kil0bitSystemMonitor
         [DllImport("user32.dll")] static extern bool SetWindowPos(IntPtr h, IntPtr ha, int x, int y, int cx, int cy, uint f);
         [DllImport("user32.dll")] static extern bool ShowWindow(IntPtr h, int cmd);
         [DllImport("user32.dll")] static extern IntPtr DefWindowProc(IntPtr h, uint m, IntPtr w, IntPtr l);
+        [DllImport("user32.dll")] static extern IntPtr GetWindow(IntPtr h, uint c);
         [DllImport("kernel32.dll")] static extern IntPtr GetModuleHandle(string? n);
         [DllImport("user32.dll")] static extern IntPtr LoadCursor(IntPtr i, int n);
         [DllImport("user32.dll", ExactSpelling = true, SetLastError = true)] static extern bool UpdateLayeredWindow(IntPtr h, IntPtr hd, ref POINT pd, ref SIZE ps, IntPtr hs, ref POINT pr, int c, ref BLENDFUNCTION b, int f);
@@ -641,6 +714,7 @@ namespace Kil0bitSystemMonitor
         [StructLayout(LayoutKind.Sequential)] public struct MONITORINFO { public uint cbSize; public Win32Helper.RECT rcMonitor; public Win32Helper.RECT rcWork; public uint dwFlags; }
         [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern bool GetMonitorInfo(IntPtr h, ref MONITORINFO m);
         [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern uint GetDpiForWindow(IntPtr h);
+        [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
         [DllImport("user32.dll", SetLastError = true)] private static extern bool DestroyIcon(IntPtr h);
         [StructLayout(LayoutKind.Sequential)] struct APPBARDATA { public int cbSize; public IntPtr hWnd; public uint uCallbackMessage; public uint uEdge; public Win32Helper.RECT rc; public IntPtr lParam; }
         [DllImport("shell32.dll", CallingConvention = CallingConvention.StdCall)] static extern IntPtr SHAppBarMessage(uint m, ref APPBARDATA d);
