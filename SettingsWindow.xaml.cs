@@ -271,9 +271,12 @@ namespace Kil0bitSystemMonitor
             c.BackgroundColorHex = "#B4141414";
             c.PodColorHex = "#0FFFFFFF";
             c.ScaleFactor = 1.0;
+            c.ColumnSpacing = 6;
             c.IsTextBold = true;
             c.ShowPods = true;
             c.ShowBackground = false;
+            c.NetLabelColorHex = null; c.CpuRamLabelColorHex = null; c.GpuLabelColorHex = null; c.DiskLabelColorHex = null;
+            c.NetAccentColorHex = null; c.CpuRamAccentColorHex = null; c.GpuAccentColorHex = null; c.DiskAccentColorHex = null;
             _config.SaveConfig();
         }
 
@@ -323,9 +326,12 @@ namespace Kil0bitSystemMonitor
             c.BackgroundColorHex = "#B4141414";
             c.PodColorHex = "#0FFFFFFF";
             c.ScaleFactor = 1.0;
+            c.ColumnSpacing = 6;
             c.IsTextBold = true;
             c.ShowPods = true;
             c.ShowBackground = false;
+            c.NetLabelColorHex = null; c.CpuRamLabelColorHex = null; c.GpuLabelColorHex = null; c.DiskLabelColorHex = null;
+            c.NetAccentColorHex = null; c.CpuRamAccentColorHex = null; c.GpuAccentColorHex = null; c.DiskAccentColorHex = null;
             
             StartupService.SetStartup(false);
             _config.SaveConfig();
@@ -338,39 +344,62 @@ namespace Kil0bitSystemMonitor
                 using (var dialog = new System.Windows.Forms.ColorDialog())
                 {
                     dialog.FullOpen = true;
-                    
                     string currentHex = tag switch {
-                        "Accent" => _config.Config.AccentColorHex,
-                        "Label" => _config.Config.LabelColorHex,
-                        "Background" => _config.Config.BackgroundColorHex,
-                        "Pod" => _config.Config.PodColorHex,
-                        _ => "#FFFFFF"
+                        "Accent"       => _config.Config.AccentColorHex,
+                        "Label"        => _config.Config.LabelColorHex,
+                        "Background"   => _config.Config.BackgroundColorHex,
+                        "Pod"          => _config.Config.PodColorHex,
+                        "NetLabel"     => _config.Config.NetLabelColorHex    ?? _config.Config.LabelColorHex,
+                        "CpuRamLabel"  => _config.Config.CpuRamLabelColorHex ?? _config.Config.LabelColorHex,
+                        "GpuLabel"     => _config.Config.GpuLabelColorHex    ?? _config.Config.LabelColorHex,
+                        "DiskLabel"    => _config.Config.DiskLabelColorHex   ?? _config.Config.LabelColorHex,
+                        "NetAccent"    => _config.Config.NetAccentColorHex    ?? _config.Config.AccentColorHex,
+                        "CpuRamAccent" => _config.Config.CpuRamAccentColorHex ?? _config.Config.AccentColorHex,
+                        "GpuAccent"    => _config.Config.GpuAccentColorHex    ?? _config.Config.AccentColorHex,
+                        "DiskAccent"   => _config.Config.DiskAccentColorHex   ?? _config.Config.AccentColorHex,
+                        _              => "#FFFFFF"
                     };
-                    
-                    try 
-                    {
-                        var c = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(currentHex);
-                        dialog.Color = System.Drawing.Color.FromArgb(c.R, c.G, c.B);
-                    } 
-                    catch { }
-
+                    try { var c = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(currentHex); dialog.Color = System.Drawing.Color.FromArgb(c.R, c.G, c.B); } catch { }
                     if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
                     {
-                        // Preserve alpha if it was already there (for background mostly)
                         string alpha = "FF";
                         if (currentHex.Length == 9) alpha = currentHex.Substring(1, 2);
-                        else if (tag == "Background") alpha = "B4"; // Default opacity for backplate
-
+                        else if (tag == "Background") alpha = "B4";
                         string hex = $"#{alpha}{dialog.Color.R:X2}{dialog.Color.G:X2}{dialog.Color.B:X2}";
-                        
                         switch (tag)
                         {
-                            case "Accent": _config.Config.AccentColorHex = hex; break;
-                            case "Label": _config.Config.LabelColorHex = hex; break;
-                            case "Background": _config.Config.BackgroundColorHex = hex; break;
-                            case "Pod": _config.Config.PodColorHex = hex; break;
+                            case "Accent":       _config.Config.AccentColorHex = hex; break;
+                            case "Label":        _config.Config.LabelColorHex = hex; break;
+                            case "Background":   _config.Config.BackgroundColorHex = hex; break;
+                            case "Pod":          _config.Config.PodColorHex = hex; break;
+                            case "NetLabel":     _config.Config.NetLabelColorHex = hex; break;
+                            case "CpuRamLabel":  _config.Config.CpuRamLabelColorHex = hex; break;
+                            case "GpuLabel":     _config.Config.GpuLabelColorHex = hex; break;
+                            case "DiskLabel":    _config.Config.DiskLabelColorHex = hex; break;
+                            case "NetAccent":    _config.Config.NetAccentColorHex = hex; break;
+                            case "CpuRamAccent": _config.Config.CpuRamAccentColorHex = hex; break;
+                            case "GpuAccent":    _config.Config.GpuAccentColorHex = hex; break;
+                            case "DiskAccent":   _config.Config.DiskAccentColorHex = hex; break;
                         }
                     }
+                }
+            }
+        }
+
+        private void ClearSectionColor_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is System.Windows.Controls.Button btn && btn.Tag is string tag)
+            {
+                switch (tag)
+                {
+                    case "NetLabel":     _config.Config.NetLabelColorHex = null; break;
+                    case "CpuRamLabel": _config.Config.CpuRamLabelColorHex = null; break;
+                    case "GpuLabel":    _config.Config.GpuLabelColorHex = null; break;
+                    case "DiskLabel":   _config.Config.DiskLabelColorHex = null; break;
+                    case "NetAccent":    _config.Config.NetAccentColorHex = null; break;
+                    case "CpuRamAccent": _config.Config.CpuRamAccentColorHex = null; break;
+                    case "GpuAccent":    _config.Config.GpuAccentColorHex = null; break;
+                    case "DiskAccent":   _config.Config.DiskAccentColorHex = null; break;
                 }
             }
         }

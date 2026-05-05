@@ -46,6 +46,16 @@ namespace Kil0bitSystemMonitor
         private Pen? _cachedHoverPen;
         private Brush? _cachedHoverBrush;
         private Brush? _cachedPodBrush;
+        // Per-section label brushes (null = use _cachedLabelBrush)
+        private Brush? _cachedNetLabelBrush;
+        private Brush? _cachedCpuRamLabelBrush;
+        private Brush? _cachedGpuLabelBrush;
+        private Brush? _cachedDiskLabelBrush;
+        // Per-section accent/metric brushes (null = use _cachedAccentBrush)
+        private Brush? _cachedNetAccentBrush;
+        private Brush? _cachedCpuRamAccentBrush;
+        private Brush? _cachedGpuAccentBrush;
+        private Brush? _cachedDiskAccentBrush;
         private Bitmap? _offscreenBitmap;
         private Graphics? _offscreenGraphics;
 
@@ -55,7 +65,6 @@ namespace Kil0bitSystemMonitor
         private const uint WS_POPUP = 0x80000000;
         private const int WM_NCHITTEST = 0x0084;
         private const int WM_RBUTTONUP = 0x0205;
-        private const int WM_COMMAND = 0x0111;
         private const int HTCAPTION = 2;
         private const int WM_LBUTTONDOWN = 0x0201;
         private const int WM_LBUTTONDBLCLK = 0x0203;
@@ -145,7 +154,9 @@ namespace Kil0bitSystemMonitor
 
                 _onConfigPropertyChanged = (s, e) => {
                     _dispatcher.BeginInvoke(() => {
-                        if (e.PropertyName == nameof(_config.Config.AccentColorHex) || e.PropertyName == nameof(_config.Config.LabelColorHex) || e.PropertyName == nameof(_config.Config.BackgroundColorHex) || e.PropertyName == nameof(_config.Config.PodColorHex) || e.PropertyName == nameof(_config.Config.FontFamily))
+                        if (e.PropertyName == nameof(_config.Config.AccentColorHex) || e.PropertyName == nameof(_config.Config.LabelColorHex) || e.PropertyName == nameof(_config.Config.BackgroundColorHex) || e.PropertyName == nameof(_config.Config.PodColorHex) || e.PropertyName == nameof(_config.Config.FontFamily)
+                            || e.PropertyName == nameof(_config.Config.NetLabelColorHex) || e.PropertyName == nameof(_config.Config.CpuRamLabelColorHex) || e.PropertyName == nameof(_config.Config.GpuLabelColorHex) || e.PropertyName == nameof(_config.Config.DiskLabelColorHex)
+                            || e.PropertyName == nameof(_config.Config.NetAccentColorHex) || e.PropertyName == nameof(_config.Config.CpuRamAccentColorHex) || e.PropertyName == nameof(_config.Config.GpuAccentColorHex) || e.PropertyName == nameof(_config.Config.DiskAccentColorHex))
                         {
                             ClearCaches();
                             UpdateCachedColors();
@@ -251,6 +262,26 @@ namespace Kil0bitSystemMonitor
                 IntPtr taskbarHwnd = Win32Helper.FindWindow("Shell_TrayWnd", null!);
                 if (taskbarHwnd != IntPtr.Zero && Win32Helper.GetWindowRect(taskbarHwnd, out Win32Helper.RECT tbRect))
                     if ((tbRect.Bottom - tbRect.Top) <= 4 || (tbRect.Right - tbRect.Left) <= 4) return false;
+
+                // Fallback: check foreground window — catches windowed-fullscreen games that never
+                // fire ABN_FULLSCREENAPP (most modern titles, browser F11, video players, etc.)
+                IntPtr fg = GetForegroundWindow();
+                if (fg != IntPtr.Zero && fg != _hWnd)
+                {
+                    if (Win32Helper.GetWindowRect(fg, out Win32Helper.RECT fgRect))
+                    {
+                        IntPtr hMon = MonitorFromWindow(fg, 1);
+                        MONITORINFO mi = new MONITORINFO { cbSize = (uint)Marshal.SizeOf(typeof(MONITORINFO)) };
+                        if (GetMonitorInfo(hMon, ref mi))
+                        {
+                            var s = mi.rcMonitor;
+                            // A window covering the full monitor extent = effectively fullscreen
+                            if (fgRect.Left <= s.Left && fgRect.Top <= s.Top &&
+                                fgRect.Right >= s.Right && fgRect.Bottom >= s.Bottom)
+                                return false;
+                        }
+                    }
+                }
             }
 
             return true;
@@ -263,7 +294,7 @@ namespace Kil0bitSystemMonitor
             if (taskbar != IntPtr.Zero && Win32Helper.GetWindowRect(taskbar, out Win32Helper.RECT tb))
             {
                 int h = tb.Bottom - tb.Top;
-                int oh = (int)(32 * _dpiScale * (float)_config.Config.ScaleFactor);
+                int oh = (int)((_config.Config.ShowPods ? 36 : 32) * _dpiScale * (float)_config.Config.ScaleFactor);
                 int cy = tb.Top + (h - oh) / 2;
                 SetWindowPos(_hWnd, IntPtr.Zero, (int)_config.Config.X, cy, 0, 0, 0x0001 | 0x0004 | 0x0010);
                 _config.Config.Y = cy;
@@ -284,10 +315,10 @@ namespace Kil0bitSystemMonitor
             System.Drawing.FontStyle style = _config.Config.IsTextBold ? System.Drawing.FontStyle.Bold : System.Drawing.FontStyle.Regular;
             Font font = GetCachedFont(fontName, 8.5f * scale, style);
 
-            int h = (int)(32 * scale);
-            float gap = 2 * scale;                          // label→value gap (was 4)
-            float podGap = (pods ? 4 : 6) * scale;          // between-column gap (was 8/16)
-            float pad = (pods ? 4 : 0) * scale;             // pod inner padding (was 8)
+            int h = (int)((pods ? 36 : 32) * scale); // pods get 4px extra height for top/bottom breathing room
+            float gap = 2 * scale;                          // label→value gap
+            float podGap = Math.Max(0, _config.Config.ColumnSpacing) * scale;  // user-controlled column spacing
+            float pad = (pods ? 4 : 0) * scale;             // pod inner horizontal padding
 
             float[] widths = new float[columns.Count];
             float total = 2 * scale;                         // left outer margin
@@ -317,8 +348,19 @@ namespace Kil0bitSystemMonitor
 
             Brush vBrush = _cachedAccentBrush ?? Brushes.White;
             Brush lBrush = _cachedLabelBrush ?? Brushes.Cyan;
+            bool ownPBrush = _cachedPodBrush == null;
             Brush pBrush = _cachedPodBrush ?? new SolidBrush(Color.FromArgb(15, 255, 255, 255));
             using var pPen = new Pen(Color.FromArgb(20, 255, 255, 255), 1);
+
+            // Section brushes: fall back to global brush when per-section color is not set
+            Brush netLBrush  = _cachedNetLabelBrush    ?? lBrush;
+            Brush cpuLBrush  = _cachedCpuRamLabelBrush ?? lBrush;
+            Brush gpuLBrush  = _cachedGpuLabelBrush    ?? lBrush;
+            Brush dskLBrush  = _cachedDiskLabelBrush   ?? lBrush;
+            Brush netVBrush  = _cachedNetAccentBrush    ?? vBrush;
+            Brush cpuVBrush  = _cachedCpuRamAccentBrush ?? vBrush;
+            Brush gpuVBrush  = _cachedGpuAccentBrush    ?? vBrush;
+            Brush dskVBrush  = _cachedDiskAccentBrush   ?? vBrush;
 
             float cx = 2 * scale;                          // start drawing from left margin (was 4)
             for (int i = 0; i < columns.Count; i++)
@@ -330,14 +372,27 @@ namespace Kil0bitSystemMonitor
                     { _offscreenGraphics.FillPath(pBrush, path); _offscreenGraphics.DrawPath(pPen, path); }
                 }
 
+                // Pick the correct label and accent brushes for this column index
+                Brush sectionLBrush = i == 0 ? netLBrush
+                                    : i == 1 ? cpuLBrush
+                                    : i == 2 ? gpuLBrush
+                                    : dskLBrush;
+                Brush sectionVBrush = i == 0 ? netVBrush
+                                    : i == 1 ? cpuVBrush
+                                    : i == 2 ? gpuVBrush
+                                    : dskVBrush;
+
                 float contentX = cx + pad;
-                float y1 = (h / 2f) - font.Height + (1f * scale);
-                float y2 = (h / 2f) + (1f * scale);
+                // Fix: calculate y positions so both text rows are fully contained within h
+                float lineH = font.Height;
+                float totalTextH = lineH * 2 + (2 * scale);
+                float y1 = (h - totalTextH) / 2f;
+                float y2 = y1 + lineH + (2 * scale);
 
                 Action<MetricItem, float> drawItem = (item, y) => {
                     float lw = GetCachedMeasure(item.Label, font);
-                    _offscreenGraphics.DrawString(item.Label, font, lBrush, contentX, y);
-                    _offscreenGraphics.DrawString(item.Value, font, vBrush, contentX + lw + gap, y);
+                    _offscreenGraphics.DrawString(item.Label, font, sectionLBrush, contentX, y);
+                    _offscreenGraphics.DrawString(item.Value, font, sectionVBrush, contentX + lw + gap, y);
                 };
 
                 if (col.Top != null && col.Bottom != null)
@@ -353,6 +408,7 @@ namespace Kil0bitSystemMonitor
                 cx += widths[i] + podGap;
             }
             SetBitmap(_offscreenBitmap);
+            if (ownPBrush) pBrush.Dispose();
         }
 
         private string FormatDiskSpeed(float kbps)
@@ -369,7 +425,8 @@ namespace Kil0bitSystemMonitor
             
             MetricItem Pct(string f, string cp, string v)  => new MetricItem { Label = compact ? cp : f, Value = v, Reserve = "100%" };
             MetricItem Temp(string f, string cp, string v) => new MetricItem { Label = compact ? cp : f, Value = v, Reserve = "100°" };
-            MetricItem Net(string f, string cp, string v)  => new MetricItem { Label = compact ? cp : f, Value = v, Reserve = "999 KB/s" };
+            // Reserve "1023 MB/s": widest net format before switching to GB/s (M glyph is wider than K)
+            MetricItem Net(string f, string cp, string v)  => new MetricItem { Label = compact ? cp : f, Value = v, Reserve = "1023 MB/s" };
 
             var list = new System.Collections.Generic.List<(MetricItem?, MetricItem?)>();
             
@@ -427,12 +484,24 @@ namespace Kil0bitSystemMonitor
         private void UpdateCachedColors()
         {
             _cachedBgBrush?.Dispose(); _cachedAccentBrush?.Dispose(); _cachedLabelBrush?.Dispose(); _cachedPodBrush?.Dispose(); _cachedHoverPen?.Dispose(); _cachedHoverBrush?.Dispose();
+            _cachedNetLabelBrush?.Dispose(); _cachedCpuRamLabelBrush?.Dispose(); _cachedGpuLabelBrush?.Dispose(); _cachedDiskLabelBrush?.Dispose();
+            _cachedNetAccentBrush?.Dispose(); _cachedCpuRamAccentBrush?.Dispose(); _cachedGpuAccentBrush?.Dispose(); _cachedDiskAccentBrush?.Dispose();
             _cachedBgBrush = new SolidBrush(HexToColor(_config.Config.BackgroundColorHex ?? "#B4141414"));
             _cachedAccentBrush = new SolidBrush(HexToColor(_config.Config.AccentColorHex ?? "#FFFFFF"));
             _cachedLabelBrush = new SolidBrush(HexToColor(_config.Config.LabelColorHex ?? "#00CCFF"));
             _cachedPodBrush = new SolidBrush(HexToColor(_config.Config.PodColorHex ?? "#0FFFFFFF"));
             _cachedHoverPen = new Pen(Color.FromArgb(20, 255, 255, 255));
             _cachedHoverBrush = new SolidBrush(Color.FromArgb(25, 255, 255, 255));
+            // Per-section label brushes: only create if a custom color is set
+            _cachedNetLabelBrush    = string.IsNullOrEmpty(_config.Config.NetLabelColorHex)    ? null : new SolidBrush(HexToColor(_config.Config.NetLabelColorHex));
+            _cachedCpuRamLabelBrush = string.IsNullOrEmpty(_config.Config.CpuRamLabelColorHex) ? null : new SolidBrush(HexToColor(_config.Config.CpuRamLabelColorHex));
+            _cachedGpuLabelBrush    = string.IsNullOrEmpty(_config.Config.GpuLabelColorHex)    ? null : new SolidBrush(HexToColor(_config.Config.GpuLabelColorHex));
+            _cachedDiskLabelBrush   = string.IsNullOrEmpty(_config.Config.DiskLabelColorHex)   ? null : new SolidBrush(HexToColor(_config.Config.DiskLabelColorHex));
+            // Per-section accent brushes: only create if a custom color is set
+            _cachedNetAccentBrush    = string.IsNullOrEmpty(_config.Config.NetAccentColorHex)    ? null : new SolidBrush(HexToColor(_config.Config.NetAccentColorHex));
+            _cachedCpuRamAccentBrush = string.IsNullOrEmpty(_config.Config.CpuRamAccentColorHex) ? null : new SolidBrush(HexToColor(_config.Config.CpuRamAccentColorHex));
+            _cachedGpuAccentBrush    = string.IsNullOrEmpty(_config.Config.GpuAccentColorHex)    ? null : new SolidBrush(HexToColor(_config.Config.GpuAccentColorHex));
+            _cachedDiskAccentBrush   = string.IsNullOrEmpty(_config.Config.DiskAccentColorHex)   ? null : new SolidBrush(HexToColor(_config.Config.DiskAccentColorHex));
         }
 
         private float GetCachedMeasure(string t, Font f) { if (_offscreenGraphics == null) return 0; string k = $"{t}_{f.Name}_{f.Size}_{f.Style}"; if (!_measureCache.TryGetValue(k, out var w)) { w = _offscreenGraphics.MeasureString(t, f, PointF.Empty, StringFormat.GenericTypographic).Width; _measureCache[k] = w; } return w; }
@@ -459,7 +528,7 @@ namespace Kil0bitSystemMonitor
 
         public void Dispose()
         {
-            try { _telemetry.MetricsUpdated -= _onMetricsUpdated; _config.Config.PropertyChanged -= _onConfigPropertyChanged; _zOrderTimer?.Dispose(); _fadeTimer?.Stop(); UnregisterAppBar(); ClearCaches(); _offscreenGraphics?.Dispose(); _offscreenBitmap?.Dispose(); _cachedBgBrush?.Dispose(); _cachedAccentBrush?.Dispose(); _cachedLabelBrush?.Dispose(); _cachedPodBrush?.Dispose(); _cachedHoverPen?.Dispose(); _cachedHoverBrush?.Dispose(); if (_hWnd != IntPtr.Zero) DestroyWindow(_hWnd); if (_hIcon != IntPtr.Zero) DestroyIcon(_hIcon); } catch { }
+            try { _telemetry.MetricsUpdated -= _onMetricsUpdated; _config.Config.PropertyChanged -= _onConfigPropertyChanged; _zOrderTimer?.Dispose(); _fadeTimer?.Stop(); UnregisterAppBar(); ClearCaches(); _offscreenGraphics?.Dispose(); _offscreenBitmap?.Dispose(); _cachedBgBrush?.Dispose(); _cachedAccentBrush?.Dispose(); _cachedLabelBrush?.Dispose(); _cachedPodBrush?.Dispose(); _cachedHoverPen?.Dispose(); _cachedHoverBrush?.Dispose(); _cachedNetLabelBrush?.Dispose(); _cachedCpuRamLabelBrush?.Dispose(); _cachedGpuLabelBrush?.Dispose(); _cachedDiskLabelBrush?.Dispose(); _cachedNetAccentBrush?.Dispose(); _cachedCpuRamAccentBrush?.Dispose(); _cachedGpuAccentBrush?.Dispose(); _cachedDiskAccentBrush?.Dispose(); if (_hWnd != IntPtr.Zero) DestroyWindow(_hWnd); if (_hIcon != IntPtr.Zero) DestroyIcon(_hIcon); } catch { }
         }
 
         private IntPtr WndProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam)
@@ -470,7 +539,7 @@ namespace Kil0bitSystemMonitor
             {
                 WINDOWPOS pos = Marshal.PtrToStructure<WINDOWPOS>(lParam);
                 IntPtr taskbar = Win32Helper.FindWindow("Shell_TrayWnd", "");
-                if (taskbar != IntPtr.Zero && Win32Helper.GetWindowRect(taskbar, out Win32Helper.RECT tb)) { int oh = (int)(32 * _dpiScale * (float)_config.Config.ScaleFactor); pos.y = tb.Top + (tb.Bottom - tb.Top - oh) / 2; Marshal.StructureToPtr(pos, lParam, false); }
+                if (taskbar != IntPtr.Zero && Win32Helper.GetWindowRect(taskbar, out Win32Helper.RECT tb)) { int oh = (int)((_config.Config.ShowPods ? 36 : 32) * _dpiScale * (float)_config.Config.ScaleFactor); pos.y = tb.Top + (tb.Bottom - tb.Top - oh) / 2; Marshal.StructureToPtr(pos, lParam, false); }
             }
             if (msg == WM_WINDOWPOSCHANGED) { if (_appbarRegistered) { APPBARDATA abd = new APPBARDATA { cbSize = Marshal.SizeOf(typeof(APPBARDATA)), hWnd = _hWnd }; SHAppBarMessage(ABM_WINDOWPOSCHANGED, ref abd); } return IntPtr.Zero; }
             if (msg == WM_APPBAR_CALLBACK) { if ((uint)wParam.ToInt32() == ABN_FULLSCREENAPP) { _shellFullscreen = (lParam != IntPtr.Zero); _dispatcher.BeginInvoke(UpdateVisibility); } return IntPtr.Zero; }

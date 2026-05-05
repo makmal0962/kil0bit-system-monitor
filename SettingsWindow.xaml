@@ -591,6 +591,9 @@
                                         <TextBlock Text="Scaling (Size)" FontWeight="SemiBold" FontSize="12" Opacity="0.7" Margin="0,0,0,4"/>
                                         <Slider Minimum="0.5" Maximum="2.0" TickFrequency="0.1" IsSnapToTickEnabled="True" Value="{Binding Config.ScaleFactor, Mode=TwoWay}" Margin="0,0,0,12"/>
 
+                                         <TextBlock Text="Column Spacing" FontWeight="SemiBold" FontSize="12" Opacity="0.7" Margin="0,0,0,4"/>
+                                        <Slider x:Name="ColumnSpacingSlider" Minimum="0" Maximum="20" TickFrequency="1" IsSnapToTickEnabled="True" Value="{Binding Config.ColumnSpacing, Mode=TwoWay}" Margin="0,0,0,12"/>
+
                                         <ui:ToggleSwitch Header="Enable Capsules" IsOn="{Binding Config.ShowPods, Mode=TwoWay}" Margin="0,0,0,8" />
                                         
                                         <ui:ToggleSwitch Header="Background Plate" IsOn="{Binding Config.ShowBackground, Mode=TwoWay}" Margin="0,0,0,8" />
@@ -610,6 +613,141 @@
                                 </Border>
                             </StackPanel>
                         </Grid>
+
+                        <!-- Section Colors -->
+                        <Border Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}" BorderBrush="{DynamicResource SystemControlElevationBorderBrush}" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,16,0,0">
+                            <StackPanel>
+                                <TextBlock Text="Section Colors" FontWeight="SemiBold" FontSize="14" Margin="0,0,0,4"/>
+                                <TextBlock Text="Override label and metric colors per section. Leave unset to inherit global colors." Opacity="0.6" FontSize="12" Margin="0,0,0,16" TextWrapping="Wrap"/>
+                                <UniformGrid Columns="4">
+
+                                    <!-- Network -->
+                                    <StackPanel Margin="0,0,12,0">
+                                        <TextBlock Text="Network" FontWeight="SemiBold" FontSize="12" Opacity="0.7" Margin="0,0,0,6"/>
+                                        <TextBlock Text="Label" FontSize="11" Opacity="0.5" Margin="0,0,0,4"/>
+                                        <Button HorizontalAlignment="Stretch" Height="32" Margin="0,0,0,4" Click="ColorButton_Click" Tag="NetLabel">
+                                            <Grid HorizontalAlignment="Stretch"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                <Border Width="16" Height="16" CornerRadius="3" BorderBrush="White" BorderThickness="1">
+                                                    <Border.Style><Style TargetType="Border"><Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Config.NetLabelColorHex}" Value=""><Setter Property="Background" Value="#333333"/></DataTrigger>
+                                                        <DataTrigger Binding="{Binding Config.NetLabelColorHex}" Value="{x:Null}"><Setter Property="Background" Value="#333333"/></DataTrigger>
+                                                    </Style.Triggers><Setter Property="Background" Value="{Binding Config.NetLabelColorHex}"/></Style></Border.Style>
+                                                </Border>
+                                                <TextBlock Grid.Column="1" Text="UP / DN" Margin="6,0" VerticalAlignment="Center" FontSize="11"/>
+                                            </Grid>
+                                        </Button>
+                                        <Button HorizontalAlignment="Stretch" Height="24" FontSize="10" Click="ClearSectionColor_Click" Tag="NetLabel" Opacity="0.6" Margin="0,0,0,8">Clear</Button>
+                                        <TextBlock Text="Metric" FontSize="11" Opacity="0.5" Margin="0,0,0,4"/>
+                                        <Button HorizontalAlignment="Stretch" Height="32" Margin="0,0,0,4" Click="ColorButton_Click" Tag="NetAccent">
+                                            <Grid HorizontalAlignment="Stretch"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                <Border Width="16" Height="16" CornerRadius="3" BorderBrush="White" BorderThickness="1">
+                                                    <Border.Style><Style TargetType="Border"><Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Config.NetAccentColorHex}" Value=""><Setter Property="Background" Value="#333333"/></DataTrigger>
+                                                        <DataTrigger Binding="{Binding Config.NetAccentColorHex}" Value="{x:Null}"><Setter Property="Background" Value="#333333"/></DataTrigger>
+                                                    </Style.Triggers><Setter Property="Background" Value="{Binding Config.NetAccentColorHex}"/></Style></Border.Style>
+                                                </Border>
+                                                <TextBlock Grid.Column="1" Text="UP / DN" Margin="6,0" VerticalAlignment="Center" FontSize="11"/>
+                                            </Grid>
+                                        </Button>
+                                        <Button HorizontalAlignment="Stretch" Height="24" FontSize="10" Click="ClearSectionColor_Click" Tag="NetAccent" Opacity="0.6">Clear</Button>
+                                    </StackPanel>
+
+                                    <!-- CPU / RAM -->
+                                    <StackPanel Margin="0,0,12,0">
+                                        <TextBlock Text="CPU / RAM" FontWeight="SemiBold" FontSize="12" Opacity="0.7" Margin="0,0,0,6"/>
+                                        <TextBlock Text="Label" FontSize="11" Opacity="0.5" Margin="0,0,0,4"/>
+                                        <Button HorizontalAlignment="Stretch" Height="32" Margin="0,0,0,4" Click="ColorButton_Click" Tag="CpuRamLabel">
+                                            <Grid HorizontalAlignment="Stretch"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                <Border Width="16" Height="16" CornerRadius="3" BorderBrush="White" BorderThickness="1">
+                                                    <Border.Style><Style TargetType="Border"><Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Config.CpuRamLabelColorHex}" Value=""><Setter Property="Background" Value="#333333"/></DataTrigger>
+                                                        <DataTrigger Binding="{Binding Config.CpuRamLabelColorHex}" Value="{x:Null}"><Setter Property="Background" Value="#333333"/></DataTrigger>
+                                                    </Style.Triggers><Setter Property="Background" Value="{Binding Config.CpuRamLabelColorHex}"/></Style></Border.Style>
+                                                </Border>
+                                                <TextBlock Grid.Column="1" Text="CPU / RAM" Margin="6,0" VerticalAlignment="Center" FontSize="11"/>
+                                            </Grid>
+                                        </Button>
+                                        <Button HorizontalAlignment="Stretch" Height="24" FontSize="10" Click="ClearSectionColor_Click" Tag="CpuRamLabel" Opacity="0.6" Margin="0,0,0,8">Clear</Button>
+                                        <TextBlock Text="Metric" FontSize="11" Opacity="0.5" Margin="0,0,0,4"/>
+                                        <Button HorizontalAlignment="Stretch" Height="32" Margin="0,0,0,4" Click="ColorButton_Click" Tag="CpuRamAccent">
+                                            <Grid HorizontalAlignment="Stretch"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                <Border Width="16" Height="16" CornerRadius="3" BorderBrush="White" BorderThickness="1">
+                                                    <Border.Style><Style TargetType="Border"><Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Config.CpuRamAccentColorHex}" Value=""><Setter Property="Background" Value="#333333"/></DataTrigger>
+                                                        <DataTrigger Binding="{Binding Config.CpuRamAccentColorHex}" Value="{x:Null}"><Setter Property="Background" Value="#333333"/></DataTrigger>
+                                                    </Style.Triggers><Setter Property="Background" Value="{Binding Config.CpuRamAccentColorHex}"/></Style></Border.Style>
+                                                </Border>
+                                                <TextBlock Grid.Column="1" Text="CPU / RAM" Margin="6,0" VerticalAlignment="Center" FontSize="11"/>
+                                            </Grid>
+                                        </Button>
+                                        <Button HorizontalAlignment="Stretch" Height="24" FontSize="10" Click="ClearSectionColor_Click" Tag="CpuRamAccent" Opacity="0.6">Clear</Button>
+                                    </StackPanel>
+
+                                    <!-- GPU / Temp -->
+                                    <StackPanel Margin="0,0,12,0">
+                                        <TextBlock Text="GPU / Temp" FontWeight="SemiBold" FontSize="12" Opacity="0.7" Margin="0,0,0,6"/>
+                                        <TextBlock Text="Label" FontSize="11" Opacity="0.5" Margin="0,0,0,4"/>
+                                        <Button HorizontalAlignment="Stretch" Height="32" Margin="0,0,0,4" Click="ColorButton_Click" Tag="GpuLabel">
+                                            <Grid HorizontalAlignment="Stretch"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                <Border Width="16" Height="16" CornerRadius="3" BorderBrush="White" BorderThickness="1">
+                                                    <Border.Style><Style TargetType="Border"><Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Config.GpuLabelColorHex}" Value=""><Setter Property="Background" Value="#333333"/></DataTrigger>
+                                                        <DataTrigger Binding="{Binding Config.GpuLabelColorHex}" Value="{x:Null}"><Setter Property="Background" Value="#333333"/></DataTrigger>
+                                                    </Style.Triggers><Setter Property="Background" Value="{Binding Config.GpuLabelColorHex}"/></Style></Border.Style>
+                                                </Border>
+                                                <TextBlock Grid.Column="1" Text="GPU / TMP" Margin="6,0" VerticalAlignment="Center" FontSize="11"/>
+                                            </Grid>
+                                        </Button>
+                                        <Button HorizontalAlignment="Stretch" Height="24" FontSize="10" Click="ClearSectionColor_Click" Tag="GpuLabel" Opacity="0.6" Margin="0,0,0,8">Clear</Button>
+                                        <TextBlock Text="Metric" FontSize="11" Opacity="0.5" Margin="0,0,0,4"/>
+                                        <Button HorizontalAlignment="Stretch" Height="32" Margin="0,0,0,4" Click="ColorButton_Click" Tag="GpuAccent">
+                                            <Grid HorizontalAlignment="Stretch"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                <Border Width="16" Height="16" CornerRadius="3" BorderBrush="White" BorderThickness="1">
+                                                    <Border.Style><Style TargetType="Border"><Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Config.GpuAccentColorHex}" Value=""><Setter Property="Background" Value="#333333"/></DataTrigger>
+                                                        <DataTrigger Binding="{Binding Config.GpuAccentColorHex}" Value="{x:Null}"><Setter Property="Background" Value="#333333"/></DataTrigger>
+                                                    </Style.Triggers><Setter Property="Background" Value="{Binding Config.GpuAccentColorHex}"/></Style></Border.Style>
+                                                </Border>
+                                                <TextBlock Grid.Column="1" Text="GPU / TMP" Margin="6,0" VerticalAlignment="Center" FontSize="11"/>
+                                            </Grid>
+                                        </Button>
+                                        <Button HorizontalAlignment="Stretch" Height="24" FontSize="10" Click="ClearSectionColor_Click" Tag="GpuAccent" Opacity="0.6">Clear</Button>
+                                    </StackPanel>
+
+                                    <!-- Disk -->
+                                    <StackPanel>
+                                        <TextBlock Text="Disk" FontWeight="SemiBold" FontSize="12" Opacity="0.7" Margin="0,0,0,6"/>
+                                        <TextBlock Text="Label" FontSize="11" Opacity="0.5" Margin="0,0,0,4"/>
+                                        <Button HorizontalAlignment="Stretch" Height="32" Margin="0,0,0,4" Click="ColorButton_Click" Tag="DiskLabel">
+                                            <Grid HorizontalAlignment="Stretch"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                <Border Width="16" Height="16" CornerRadius="3" BorderBrush="White" BorderThickness="1">
+                                                    <Border.Style><Style TargetType="Border"><Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Config.DiskLabelColorHex}" Value=""><Setter Property="Background" Value="#333333"/></DataTrigger>
+                                                        <DataTrigger Binding="{Binding Config.DiskLabelColorHex}" Value="{x:Null}"><Setter Property="Background" Value="#333333"/></DataTrigger>
+                                                    </Style.Triggers><Setter Property="Background" Value="{Binding Config.DiskLabelColorHex}"/></Style></Border.Style>
+                                                </Border>
+                                                <TextBlock Grid.Column="1" Text="Disk" Margin="6,0" VerticalAlignment="Center" FontSize="11"/>
+                                            </Grid>
+                                        </Button>
+                                        <Button HorizontalAlignment="Stretch" Height="24" FontSize="10" Click="ClearSectionColor_Click" Tag="DiskLabel" Opacity="0.6" Margin="0,0,0,8">Clear</Button>
+                                        <TextBlock Text="Metric" FontSize="11" Opacity="0.5" Margin="0,0,0,4"/>
+                                        <Button HorizontalAlignment="Stretch" Height="32" Margin="0,0,0,4" Click="ColorButton_Click" Tag="DiskAccent">
+                                            <Grid HorizontalAlignment="Stretch"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                <Border Width="16" Height="16" CornerRadius="3" BorderBrush="White" BorderThickness="1">
+                                                    <Border.Style><Style TargetType="Border"><Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Config.DiskAccentColorHex}" Value=""><Setter Property="Background" Value="#333333"/></DataTrigger>
+                                                        <DataTrigger Binding="{Binding Config.DiskAccentColorHex}" Value="{x:Null}"><Setter Property="Background" Value="#333333"/></DataTrigger>
+                                                    </Style.Triggers><Setter Property="Background" Value="{Binding Config.DiskAccentColorHex}"/></Style></Border.Style>
+                                                </Border>
+                                                <TextBlock Grid.Column="1" Text="Disk" Margin="6,0" VerticalAlignment="Center" FontSize="11"/>
+                                            </Grid>
+                                        </Button>
+                                        <Button HorizontalAlignment="Stretch" Height="24" FontSize="10" Click="ClearSectionColor_Click" Tag="DiskAccent" Opacity="0.6">Clear</Button>
+                                    </StackPanel>
+
+                                </UniformGrid>
+                            </StackPanel>
+                        </Border>
 
                         <!-- Action Buttons -->
                         <Border Background="{DynamicResource SystemControlBackgroundChromeMediumBrush}" CornerRadius="8" Margin="0,24,0,0" Padding="16">

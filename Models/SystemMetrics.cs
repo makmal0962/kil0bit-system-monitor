@@ -40,7 +40,7 @@ namespace Kil0bitSystemMonitor.Models
         private bool _showNetDown = true;
         private string _networkAdapter = "Default";
         private string _gpuAdapter = "Default";
-        private string _selectedDisks = "Default";
+        private string _selectedDisks = "All";
         private string _displayStyle = "Text";
         private string _fontFamily = "Segoe UI";
         private string _accentColorHex = "#FFFFFF";
@@ -53,6 +53,7 @@ namespace Kil0bitSystemMonitor.Models
         private string _backgroundColorHex = "#B4141414";
         private double _scaleFactor = 1.0;
         private bool _isTextBold = true;
+        private int _columnSpacing = 6;
 
         private string _theme = "Default";
         private int _updateInterval = 1000;
@@ -60,6 +61,18 @@ namespace Kil0bitSystemMonitor.Models
         private bool _showPods = true;
         private string _podColorHex = "#0FFFFFFF"; 
         private bool _alwaysOnTop = true;
+
+        // Per-section label colors (null = use global LabelColorHex)
+        private string? _netLabelColorHex = null;
+        private string? _cpuRamLabelColorHex = null;
+        private string? _gpuLabelColorHex = null;
+        private string? _diskLabelColorHex = null;
+
+        // Per-section metric/accent colors (null = use global AccentColorHex)
+        private string? _netAccentColorHex = null;
+        private string? _cpuRamAccentColorHex = null;
+        private string? _gpuAccentColorHex = null;
+        private string? _diskAccentColorHex = null;
         public bool ShowOverlay { get => _showOverlay; set { _showOverlay = value; OnPropertyChanged(); } }
         public bool LockPosition { get => _lockPosition; set { _lockPosition = value; OnPropertyChanged(); } }
         public bool LaunchOnStartup { get => _launchOnStartup; set { _launchOnStartup = value; OnPropertyChanged(); } }
@@ -85,6 +98,7 @@ namespace Kil0bitSystemMonitor.Models
 
         public double ScaleFactor { get => _scaleFactor; set { _scaleFactor = value; OnPropertyChanged(); } }
         public bool IsTextBold { get => _isTextBold; set { _isTextBold = value; OnPropertyChanged(); } }
+        public int ColumnSpacing { get => _columnSpacing; set { _columnSpacing = Math.Clamp(value, 0, 20); OnPropertyChanged(); } }
 
         public string Theme { get => _theme; set { _theme = value; OnPropertyChanged(); } }
         public int UpdateInterval { get => _updateInterval; set { _updateInterval = value; OnPropertyChanged(); } }
@@ -92,6 +106,18 @@ namespace Kil0bitSystemMonitor.Models
         public bool ShowPods { get => _showPods; set { _showPods = value; OnPropertyChanged(); } }
         public string PodColorHex { get => _podColorHex; set { _podColorHex = value; OnPropertyChanged(); OnPropertyChanged(nameof(PodColor)); } }
         public bool AlwaysOnTop { get => _alwaysOnTop; set { _alwaysOnTop = value; OnPropertyChanged(); } }
+
+        // Per-section label colors (null/empty = inherit global LabelColorHex)
+        public string? NetLabelColorHex { get => _netLabelColorHex; set { _netLabelColorHex = value; OnPropertyChanged(); } }
+        public string? CpuRamLabelColorHex { get => _cpuRamLabelColorHex; set { _cpuRamLabelColorHex = value; OnPropertyChanged(); } }
+        public string? GpuLabelColorHex { get => _gpuLabelColorHex; set { _gpuLabelColorHex = value; OnPropertyChanged(); } }
+        public string? DiskLabelColorHex { get => _diskLabelColorHex; set { _diskLabelColorHex = value; OnPropertyChanged(); } }
+
+        // Per-section metric/accent colors (null/empty = inherit global AccentColorHex)
+        public string? NetAccentColorHex { get => _netAccentColorHex; set { _netAccentColorHex = value; OnPropertyChanged(); } }
+        public string? CpuRamAccentColorHex { get => _cpuRamAccentColorHex; set { _cpuRamAccentColorHex = value; OnPropertyChanged(); } }
+        public string? GpuAccentColorHex { get => _gpuAccentColorHex; set { _gpuAccentColorHex = value; OnPropertyChanged(); } }
+        public string? DiskAccentColorHex { get => _diskAccentColorHex; set { _diskAccentColorHex = value; OnPropertyChanged(); } }
 
         public double X { get => _x; set { _x = value; OnPropertyChanged(); } }
         public double Y { get => _y; set { _y = value; OnPropertyChanged(); } }
