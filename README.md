@@ -1,4 +1,4 @@
-# kil0bit System Monitor v3.0.0 Gold
+# kil0bit System Monitor v3
 
 <div align="center">
 
@@ -33,7 +33,7 @@ Kil0bit System Monitor is a modern successor to legacy taskbar monitors. It’s 
 
 ---
 
-## ✨ v3.0.0 Gold Highlights
+## ✨ v3
 - **🪶 Ultra-Lightweight**: Re-engineered for a tiny **~2.71 MB footprint** by optimizing for the native .NET 8 runtime.
 - **🚀 Multi-Disk Monitoring**: Track activity across all your drives simultaneously with a dynamic 3x3 layout.
 - **📐 Smart Alignment**: Pixel-perfect layout stability across Icon, Text, and Compact modes.
