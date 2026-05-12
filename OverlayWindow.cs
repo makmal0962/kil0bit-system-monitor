@@ -39,7 +39,7 @@ namespace Kil0bitSystemMonitor
         private bool _overlayVisible = true;
         private System.Windows.Threading.DispatcherTimer? _fadeTimer;
         private System.Windows.Threading.DispatcherTimer? _hideDebounceTimer;
-        
+
         private readonly System.Collections.Generic.Dictionary<string, Font> _fontCache = new();
         private readonly System.Collections.Generic.Dictionary<string, float> _measureCache = new();
         private Brush? _cachedBgBrush;
@@ -106,7 +106,7 @@ namespace Kil0bitSystemMonitor
 
                 WNDCLASSEX wc = new WNDCLASSEX();
                 wc.cbSize = (uint)Marshal.SizeOf(typeof(WNDCLASSEX));
-                wc.style = 0x0008; 
+                wc.style = 0x0008;
                 wc.lpfnWndProc = Marshal.GetFunctionPointerForDelegate(_wndProc);
                 wc.hInstance = GetModuleHandle(null);
                 wc.lpszClassName = "Kil0bitOverlayWndClass_Main";
@@ -134,7 +134,7 @@ namespace Kil0bitSystemMonitor
                 if (_hWnd == IntPtr.Zero) throw new Exception("Failed to create window");
 
                 if (_hIcon != IntPtr.Zero) { SendMessage(_hWnd, WM_SETICON, (IntPtr)ICON_BIG, _hIcon); SendMessage(_hWnd, WM_SETICON, (IntPtr)ICON_SMALL, _hIcon); }
-                
+
                 _currentDpi = GetDpiForWindow(_hWnd);
                 if (_currentDpi == 0) _currentDpi = 96;
                 _dpiScale = _currentDpi / 96.0f;
@@ -149,12 +149,12 @@ namespace Kil0bitSystemMonitor
                 UpdateCachedColors();
                 UpdateLayer();
 
-                _onMetricsUpdated = (m) => { 
-                    _dispatcher.BeginInvoke(() => { 
-                        _viewModel.Metrics = m; 
+                _onMetricsUpdated = (m) => {
+                    _dispatcher.BeginInvoke(() => {
+                        _viewModel.Metrics = m;
                         // Only re-render if visible or transitioning
-                        if (_targetAlpha > 0 || _currentAlpha > 0) UpdateLayer(); 
-                    }); 
+                        if (_targetAlpha > 0 || _currentAlpha > 0) UpdateLayer();
+                    });
                 };
                 _telemetry.MetricsUpdated += _onMetricsUpdated;
                 _zOrderTimer = new System.Threading.Timer(EnforceZOrder, null, 0, 500);
@@ -189,7 +189,7 @@ namespace Kil0bitSystemMonitor
             _dispatcher.BeginInvoke(() =>
             {
                 bool show = ShouldShowOverlay();
-                
+
                 if (show)
                 {
                     _hideDebounceTimer?.Stop();
@@ -206,7 +206,7 @@ namespace Kil0bitSystemMonitor
                     if (!_hideDebounceTimer.IsEnabled && _targetAlpha != 0) _hideDebounceTimer.Start();
                 }
 
-                if (_overlayVisible && _config.Config.AlwaysOnTop) 
+                if (_overlayVisible && _config.Config.AlwaysOnTop)
                 {
                     // Smart check: Only re-assert TOPMOST if we are NOT already the top-most window.
                     IntPtr prev = GetWindow(_hWnd, GW_HWNDPREV);
@@ -237,7 +237,7 @@ namespace Kil0bitSystemMonitor
             if (show)
             {
                 _hideDebounceTimer?.Stop();
-                _targetAlpha = 255; 
+                _targetAlpha = 255;
                 StartFade();
             }
             else
@@ -337,7 +337,7 @@ namespace Kil0bitSystemMonitor
             StringBuilder sb = new StringBuilder(256);
             Win32Helper.GetClassName(hWnd, sb, sb.Capacity);
             string cls = sb.ToString();
-            if (cls == "Progman" || cls == "WorkerW" || cls == "Shell_TrayWnd" || cls == "Shell_SecondaryTrayWnd" || 
+            if (cls == "Progman" || cls == "WorkerW" || cls == "Shell_TrayWnd" || cls == "Shell_SecondaryTrayWnd" ||
                    cls == "MultitaskingViewFrame" || cls == "TaskView" || cls == "Windows.UI.Core.CoreWindow" ||
                    cls == "XamlExplorerViewHostWindow" || cls == "DesktopWindowXamlSource")
                 return true;
@@ -350,7 +350,7 @@ namespace Kil0bitSystemMonitor
                     using (var p = System.Diagnostics.Process.GetProcessById((int)pid))
                     {
                         string pname = p.ProcessName.ToLower();
-                        return (pname == "explorer" || pname == "shellexperiencehost" || 
+                        return (pname == "explorer" || pname == "shellexperiencehost" ||
                                 pname == "startmenuexperiencehost" || pname == "searchhost");
                     }
                 }
@@ -381,11 +381,12 @@ namespace Kil0bitSystemMonitor
             if (_targetAlpha == 0 && _currentAlpha == 0) return;
             var columns = PrepareMetricsData();
             float scale = _dpiScale * (float)_config.Config.ScaleFactor;
+            float textScale = (float)_config.Config.ScaleFactor;
             bool pods = _config.Config.ShowPods;
             string fontName = _config.Config.FontFamily;
             if (string.IsNullOrEmpty(fontName) || fontName == "Default") fontName = "Segoe UI";
             System.Drawing.FontStyle style = _config.Config.IsTextBold ? System.Drawing.FontStyle.Bold : System.Drawing.FontStyle.Regular;
-            Font font = GetCachedFont(fontName, 8.5f * scale, style);
+            Font font = GetCachedFont(fontName, 8.5f * textScale, style);
 
             int h = (int)((pods ? 36 : 32) * scale); // pods get 4px extra height for top/bottom breathing room
             float gap = 2 * scale;                          // label→value gap
@@ -494,24 +495,24 @@ namespace Kil0bitSystemMonitor
         {
             bool compact = (_config.Config.DisplayStyle ?? "Text") == "Compact";
             var m = _viewModel.Metrics; var c = _config.Config;
-            
+
             MetricItem Pct(string f, string cp, string v)  => new MetricItem { Label = compact ? cp : f, Value = v, Reserve = "100%" };
             MetricItem Temp(string f, string cp, string v) => new MetricItem { Label = compact ? cp : f, Value = v, Reserve = "100°" };
             // Reserve "1023 MB/s": widest net format before switching to GB/s (M glyph is wider than K)
             MetricItem Net(string f, string cp, string v)  => new MetricItem { Label = compact ? cp : f, Value = v, Reserve = "1023 MB/s" };
 
             var list = new System.Collections.Generic.List<(MetricItem?, MetricItem?)>();
-            
-            if (c.ShowNetUp || c.ShowNetDown) 
+
+            if (c.ShowNetUp || c.ShowNetDown)
                 list.Add((c.ShowNetUp ? Net("UP ", "U", m.NetUpText) : null, c.ShowNetDown ? Net("DN ", "D", m.NetDownText) : null));
-            
-            if (c.ShowCpu || c.ShowRam) 
+
+            if (c.ShowCpu || c.ShowRam)
                 list.Add((c.ShowCpu ? Pct("CPU", "C", $"{(int)m.CpuUsage}%") : null, c.ShowRam ? Pct("RAM", "R", $"{(int)m.RamPercent}%") : null));
-            
+
             string tempStr = m.GpuTemperature > 0 ? $"{(int)m.GpuTemperature}°" : "N/A";
-            if (c.ShowGpu || c.ShowTemp) 
+            if (c.ShowGpu || c.ShowTemp)
                 list.Add((c.ShowGpu ? Pct("GPU", "G", $"{(int)m.GpuUsage}%") : null, c.ShowTemp ? Temp("TMP", "T", tempStr) : null));
-            
+
             if (c.ShowDisk || c.ShowDiskSpeed)
             {
                 if (m.Disks != null && m.Disks.Count > 0)
@@ -523,7 +524,7 @@ namespace Kil0bitSystemMonitor
                         int colonIdx = letter.IndexOf(':');
                         if (colonIdx > 0) letter = letter.Substring(colonIdx - 1, 1);
                         else if (letter.Length > 0) letter = letter.Substring(0, 1);
-                        
+
                         string cdkLabel = letter.ToUpper() + "DK";
 
                         list.Add((
@@ -533,7 +534,7 @@ namespace Kil0bitSystemMonitor
                     }
                 }
             }
-            
+
             return list;
         }
 
@@ -641,12 +642,12 @@ namespace Kil0bitSystemMonitor
                     AppendMenu(hMenu, 0x0800, 0, null);
                     AppendMenu(hMenu, 0, 1004, "Exit");
                     SetForegroundWindow(hWnd);
-                    
+
                     Win32Helper.GetWindowRect(hWnd, out Win32Helper.RECT wr);
                     IntPtr hMon = MonitorFromWindow(hWnd, 1);
                     MONITORINFO mi = new MONITORINFO { cbSize = (uint)Marshal.SizeOf(typeof(MONITORINFO)) };
                     GetMonitorInfo(hMon, ref mi);
-                    
+
                     int my;
                     uint alignFlag;
                     // If the overlay is in the bottom half of the screen, pop the menu UP
