@@ -264,12 +264,10 @@ namespace Kil0bitSystemMonitor.Services
                         // NVIDIA and Arc are discrete; AMD/Radeon/Intel UHD/Iris may be APU (zero dedicated VRAM)
                         bool isDedicatedSelection = _isNvidiaSelected ||
                                                     selectedName.Contains("Arc", StringComparison.OrdinalIgnoreCase) ||
-                                                    selectedName.Contains("AMD", StringComparison.OrdinalIgnoreCase) ||
-                                                    selectedName.Contains("Radeon", StringComparison.OrdinalIgnoreCase) ||
-                                                    selectedName.Contains("Intel", StringComparison.OrdinalIgnoreCase) ||
-                                                    selectedName.Contains("UHD", StringComparison.OrdinalIgnoreCase) ||
-                                                    selectedName.Contains("Iris", StringComparison.OrdinalIgnoreCase);
-
+                                                    (selectedName.Contains("AMD", StringComparison.OrdinalIgnoreCase) ||
+                                                    selectedName.Contains("Radeon", StringComparison.OrdinalIgnoreCase)) &&
+                                                    dedicatedLuidCandidate != null;
+                                                    
                         _selectedGpuLuid = isDedicatedSelection ? dedicatedLuidCandidate : (sharedLuidCandidate ?? dedicatedLuidCandidate);
                     }
                     catch { }
@@ -327,8 +325,10 @@ namespace Kil0bitSystemMonitor.Services
         {
             try
             {
+                bool isEmpty = _gpuCounters.Count == 0;
+                bool throttleExpired = (DateTime.Now - _lastGpuCounterRefresh).TotalSeconds >= 30;
                 // Throttle enumeration to once every 30 seconds to save CPU
-                if ((DateTime.Now - _lastGpuCounterRefresh).TotalSeconds < 30 && _gpuCounters.Count > 0) return;
+                if (!throttleExpired && !isEmpty) return;
                 _lastGpuCounterRefresh = DateTime.Now;
 
                 var category = new PerformanceCounterCategory("GPU Engine");
@@ -448,16 +448,14 @@ namespace Kil0bitSystemMonitor.Services
             if (gpuUsage == 0) // Fallback or non-nvidia
             {   
                 UpdateGpuCounters();
-                // problem: the counter is sometimes lagging 10-30 secs behind!
-                foreach (var counter in _gpuCounters.Values)
+                var deadCounters = new System.Collections.Generic.List<string>();
+                foreach (var kvp in _gpuCounters)
                 {
-                    try 
-                    { 
-                        float val = counter.NextValue(); 
-                        if (val > gpuUsage) gpuUsage = val; // find who's the peakest among multiple engines (3D, Copy, Video Encode, etc)
-                    } 
-                    catch { }
+                    try { gpuUsage += kvp.Value.NextValue(); }
+                    catch { deadCounters.Add(kvp.Key); }
                 }
+                foreach (var k in deadCounters) { _gpuCounters[k].Dispose(); _gpuCounters.Remove(k); }
+                gpuUsage = Math.Min(gpuUsage, 100f);
             }
             metrics.GpuUsage = gpuUsage;
 
