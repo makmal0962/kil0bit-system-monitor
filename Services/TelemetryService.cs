@@ -263,13 +263,12 @@ namespace Kil0bitSystemMonitor.Services
 
                         // NVIDIA and Arc are discrete; AMD/Radeon/Intel UHD/Iris may be APU (zero dedicated VRAM)
                         bool isDedicatedSelection = _isNvidiaSelected ||
-                            selectedName.Contains("Arc", StringComparison.OrdinalIgnoreCase);
-                        bool isAmdApu = (selectedName.Contains("AMD", StringComparison.OrdinalIgnoreCase) ||
-                                        selectedName.Contains("Radeon", StringComparison.OrdinalIgnoreCase) ||
-                                        selectedName.Contains("Intel", StringComparison.OrdinalIgnoreCase) ||
-                                        selectedName.Contains("UHD", StringComparison.OrdinalIgnoreCase) ||
-                                        selectedName.Contains("Iris", StringComparison.OrdinalIgnoreCase)) &&
-                                        dedicatedLuidCandidate == null;
+                                                    selectedName.Contains("Arc", StringComparison.OrdinalIgnoreCase) ||
+                                                    selectedName.Contains("AMD", StringComparison.OrdinalIgnoreCase) ||
+                                                    selectedName.Contains("Radeon", StringComparison.OrdinalIgnoreCase) ||
+                                                    selectedName.Contains("Intel", StringComparison.OrdinalIgnoreCase) ||
+                                                    selectedName.Contains("UHD", StringComparison.OrdinalIgnoreCase) ||
+                                                    selectedName.Contains("Iris", StringComparison.OrdinalIgnoreCase);
 
                         _selectedGpuLuid = isDedicatedSelection ? dedicatedLuidCandidate : (sharedLuidCandidate ?? dedicatedLuidCandidate);
                     }
