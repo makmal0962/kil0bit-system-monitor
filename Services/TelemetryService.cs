@@ -271,9 +271,7 @@ namespace Kil0bitSystemMonitor.Services
                                         selectedName.Contains("Iris", StringComparison.OrdinalIgnoreCase)) &&
                                         dedicatedLuidCandidate == null;
 
-                        _selectedGpuLuid = (isDedicatedSelection && !isAmdApu)
-                            ? dedicatedLuidCandidate
-                            : (sharedLuidCandidate ?? dedicatedLuidCandidate);
+                        _selectedGpuLuid = isDedicatedSelection ? dedicatedLuidCandidate : (sharedLuidCandidate ?? dedicatedLuidCandidate);
                     }
                     catch { }
                 }
