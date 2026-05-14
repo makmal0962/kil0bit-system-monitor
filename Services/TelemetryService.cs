@@ -446,11 +446,17 @@ namespace Kil0bitSystemMonitor.Services
             }
             
             if (gpuUsage == 0) // Fallback or non-nvidia
-            {
+            {   
                 UpdateGpuCounters();
+                // problem: the counter is sometimes lagging 10-30 secs behind!
                 foreach (var counter in _gpuCounters.Values)
                 {
-                    try { gpuUsage += counter.NextValue(); } catch { }
+                    try 
+                    { 
+                        float val = counter.NextValue(); 
+                        if (val > gpuUsage) gpuUsage = val; // find who's the peakest among multiple engines (3D, Copy, Video Encode, etc)
+                    } 
+                    catch { }
                 }
             }
             metrics.GpuUsage = gpuUsage;
