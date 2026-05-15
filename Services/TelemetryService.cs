@@ -278,7 +278,7 @@ namespace Kil0bitSystemMonitor.Services
                 
                 StartSmiReader();
                 _adlService?.Dispose();
-                _adlService = new AmdAdlService();
+                _adlService = new AmdAdlService(selectedName);
             }
             catch { }
         }
@@ -445,17 +445,25 @@ namespace Kil0bitSystemMonitor.Services
                 gpuUsage = GetNvidiaUsage();
             }
             
-            if (gpuUsage == 0) // Fallback or non-nvidia
-            {   
-                UpdateGpuCounters();
-                var deadCounters = new System.Collections.Generic.List<string>();
-                foreach (var kvp in _gpuCounters)
+            if (gpuUsage == 0)
+            {
+                if (_adlService != null && _adlService.IsAvailable) // AMD method
                 {
-                    try { gpuUsage += kvp.Value.NextValue(); }
-                    catch { deadCounters.Add(kvp.Key); }
+                    float adlUsage = _adlService.GetGpuUsage();
+                    if (adlUsage >= 0) gpuUsage = adlUsage;
                 }
-                foreach (var k in deadCounters) { _gpuCounters[k].Dispose(); _gpuCounters.Remove(k); }
-                gpuUsage = Math.Min(gpuUsage, 100f);
+                else
+                {
+                    UpdateGpuCounters(); // fallback PerfomanceCounter
+                    var deadCounters = new System.Collections.Generic.List<string>();
+                    foreach (var kvp in _gpuCounters)
+                    {
+                        try { gpuUsage += kvp.Value.NextValue(); }
+                        catch { deadCounters.Add(kvp.Key); }
+                    }
+                    foreach (var k in deadCounters) { _gpuCounters[k].Dispose(); _gpuCounters.Remove(k); }
+                    gpuUsage = Math.Min(gpuUsage, 100f);
+                }
             }
             metrics.GpuUsage = gpuUsage;
 
